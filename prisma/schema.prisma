@@ -1,0 +1,707 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Location {
+  id               Int          @id @default(autoincrement())
+  name             String
+  type             LocationType
+  address          String?
+  abbreviation     String?
+  region           String?
+  saleCounter      Int          @default(0)
+  quotationCounter Int          @default(0)
+  creditCounter    Int          @default(0)
+  receiptCounter   Int          @default(0)
+  isVisible        Boolean      @default(true)
+  transferCounter  Int          @default(0)
+  employees        Employee[]
+  inventories      Inventory[]
+  sales            Sale[]
+  quotations       Quotation[]
+  creditPlans      CreditPlan[]
+
+  fromMovements StockMovement[] @relation("FromLocation")
+  toMovements   StockMovement[] @relation("ToLocation")
+
+  fromTransfers Transfer[] @relation("FromTransfer")
+  toTransfers   Transfer[] @relation("ToTransfer")
+
+  importaciones Importacion[]
+  SaleDetail    SaleDetail[]
+
+  InventoryCross InventoryCross[]
+}
+
+enum LocationType {
+  WAREHOUSE
+  BRANCH
+}
+
+model Employee {
+  id       Int     @id @default(autoincrement())
+  name     String
+  lastName String
+  email    String? @unique
+  password String?
+  numeral  Int?
+  celular  String?
+  role     Role    @relation(fields: [roleId], references: [id])
+  roleId   Int
+
+  location   Location? @relation(fields: [locationId], references: [id])
+  locationId Int?
+
+  isVisible Boolean @default(true)
+
+  sales          Sale[]
+  quotations     Quotation[]
+  creditPlans    CreditPlan[]
+  creditPayments CreditPayment[]
+
+  requestedTransfers Transfer[] @relation("RequestedBy")
+  approvedTransfers  Transfer[] @relation("ApprovedBy")
+  editedTransfers    Transfer[] @relation("EditedBy")
+
+  notificationReads NotificationRead[]
+
+  InventoryCross InventoryCross[]
+}
+
+model Role {
+  id          Int     @id @default(autoincrement())
+  name        String  @unique
+  description String?
+  level       Int?
+  isVisible   Boolean @default(true)
+
+  employees Employee[]
+}
+
+model Line {
+  id          Int     @id @default(autoincrement())
+  name        String  @unique
+  description String?
+  brands      Json?
+  isVisible   Boolean @default(true)
+
+  products Product[]
+}
+
+model Unit {
+  id            Int     @id @default(autoincrement())
+  name          String  @unique
+  code          String  @unique
+  allowDecimals Boolean @default(false)
+  isVisible     Boolean @default(true)
+
+  baseProducts Product[]     @relation("BaseUnit")
+  productUnits ProductUnit[]
+}
+
+model Product {
+  id          Int     @id @default(autoincrement())
+  name        String
+  description String?
+  code        String  @unique
+  isVisible   Boolean @default(true)
+
+  purchasePrice      Float @default(0)
+  salePrice          Float @default(0)
+  porcentajeGanancia Float @default(50)
+  baseUnit           Unit  @relation("BaseUnit", fields: [baseUnitId], references: [id])
+  baseUnitId         Int
+
+  line   Line? @relation(fields: [lineId], references: [id])
+  lineId Int?
+
+  brandName        String?
+  quantityDiscount Float   @default(0)
+  bossDiscount     Float   @default(0)
+
+  productUnits      ProductUnit[]
+  inventories       Inventory[]
+  movements         StockMovement[]
+  saleDetails       SaleDetail[]
+  quotationDetails  QuotationDetail[]
+  creditPlanDetails CreditPlanDetail[]
+  transferItems     TransferItem[]
+
+  crossesFrom InventoryCrossDetail[] @relation("CrossOriginProduct")
+  crossesTo   InventoryCrossDetail[] @relation("CrossDestinationProduct")
+}
+
+model ProductUnit {
+  id Int @id @default(autoincrement())
+
+  product   Product @relation(fields: [productId], references: [id])
+  productId Int
+
+  unit   Unit @relation(fields: [unitId], references: [id])
+  unitId Int
+
+  equivalence Float
+
+  purchasePrice Float @default(0)
+  salePrice     Float
+
+  isDefault Boolean @default(false)
+
+  saleDetails       SaleDetail[]
+  quotationDetails  QuotationDetail[]
+  creditPlanDetails CreditPlanDetail[]
+  stockMovements    StockMovement[]
+  transferItems     TransferItem[]
+
+  @@unique([productId, unitId])
+}
+
+model Inventory {
+  id Int @id @default(autoincrement())
+
+  product   Product @relation(fields: [productId], references: [id])
+  productId Int
+
+  location   Location @relation(fields: [locationId], references: [id])
+  locationId Int
+
+  quantity    Float @default(0)
+  averageCost Float @default(0)
+
+  @@unique([productId, locationId])
+}
+
+model StockMovement {
+  id Int @id @default(autoincrement())
+
+  product   Product @relation(fields: [productId], references: [id])
+  productId Int
+
+  productUnit   ProductUnit? @relation(fields: [productUnitId], references: [id])
+  productUnitId Int?
+
+  fromLocation   Location? @relation("FromLocation", fields: [fromLocationId], references: [id])
+  fromLocationId Int?
+
+  toLocation   Location? @relation("ToLocation", fields: [toLocationId], references: [id])
+  toLocationId Int?
+
+  quantity             Float
+  presentationQuantity Float?
+
+  unitCost Float @default(0)
+
+  type MovementType
+
+  reference String?
+
+  transfer   Transfer? @relation(fields: [transferId], references: [id])
+  transferId Int?
+
+  createdAt DateTime @default(now())
+}
+
+enum MovementType {
+  IN
+  OUT
+  TRANSFER
+  ADJUSTMENT
+}
+
+model Transfer {
+  id Int @id @default(autoincrement())
+
+  transferCode String? @unique
+
+  fromLocation   Location? @relation("FromTransfer", fields: [fromLocationId], references: [id])
+  fromLocationId Int?
+
+  toLocation   Location? @relation("ToTransfer", fields: [toLocationId], references: [id])
+  toLocationId Int?
+
+  status TransferStatus @default(PENDING)
+
+  createdAt  DateTime  @default(now())
+  editedAt   DateTime?
+  editedById Int?
+  editedBy   Employee? @relation("EditedBy", fields: [editedById], references: [id])
+  editReason String?
+
+  requestedById Int
+  requestedBy   Employee @relation("RequestedBy", fields: [requestedById], references: [id])
+
+  approvedBy   Employee? @relation("ApprovedBy", fields: [approvedById], references: [id])
+  approvedById Int?
+
+  approvedAt DateTime?
+  executedAt DateTime?
+
+  rejectionReason String?
+  glosa           String?
+
+  items     TransferItem[]
+  movements StockMovement[]
+
+  notifications Notification[]
+}
+
+model TransferItem {
+  id Int @id @default(autoincrement())
+
+  transfer   Transfer @relation(fields: [transferId], references: [id])
+  transferId Int
+
+  product   Product @relation(fields: [productId], references: [id])
+  productId Int
+
+  productUnit   ProductUnit? @relation(fields: [productUnitId], references: [id])
+  productUnitId Int?
+
+  presentationQuantity Float?
+  quantity             Float
+}
+
+enum TransferStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model Sale {
+  id   Int      @id @default(autoincrement())
+  date DateTime @default(now())
+
+  location   Location @relation(fields: [locationId], references: [id])
+  locationId Int
+
+  employee   Employee @relation(fields: [employeeId], references: [id])
+  employeeId Int
+
+  customer   Customer? @relation(fields: [customerId], references: [id])
+  customerId Int?
+
+  subtotal Float @default(0)
+  discount Float @default(0)
+  total    Float
+
+  code   String?
+  pdfUrl String?
+
+  details SaleDetail[]
+
+  typeSale          String?
+  transactionNumber String?
+
+  bankName        String?
+  generateInvoice Boolean @default(false)
+
+  paymentMethodChanged Boolean @default(false)
+  dateChanged          Boolean @default(false)
+
+  status        SaleStatus @default(COMPLETED)
+  cancelReason  String?
+  cancelledAt   DateTime?
+  cancelledById Int?
+
+  quotation   Quotation? @relation(fields: [quotationId], references: [id])
+  quotationId Int?
+
+  customerAddress   CustomerAddress? @relation(fields: [customerAddressId], references: [id])
+  customerAddressId Int?
+
+  customerAddressSnapshot   String?
+  customerLatitudeSnapshot  Float?
+  customerLongitudeSnapshot Float?
+
+  customerNit   CustomerNit? @relation(fields: [customerNitId], references: [id])
+  customerNitId Int?
+
+  customerNitSnapshot        String?
+  customerNitCompanySnapshot String?
+  glosa                      String?
+  notifications              Notification[]
+
+  creditPlan CreditPlan?
+}
+
+enum SaleStatus {
+  COMPLETED
+  PENDING
+  CANCELLED
+}
+
+enum DeliveryStatus {
+  PENDING
+  DELIVERED
+}
+
+model SaleDetail {
+  id Int @id @default(autoincrement())
+
+  sale   Sale @relation(fields: [saleId], references: [id])
+  saleId Int
+
+  product   Product @relation(fields: [productId], references: [id])
+  productId Int
+
+  productUnit   ProductUnit @relation(fields: [productUnitId], references: [id])
+  productUnitId Int
+
+  unitName     String
+  equivalence  Float
+  quantity     Float
+  unitPrice    Float
+  itemDiscount Float  @default(0)
+  subtotal     Float
+
+  outputLocationId Int?
+  outputLocation   Location? @relation(fields: [outputLocationId], references: [id])
+
+  deliveryStatus DeliveryStatus @default(PENDING)
+
+  deliveredAt DateTime?
+  deliveredBy Int?
+}
+
+model Quotation {
+  id   Int      @id @default(autoincrement())
+  code String   @unique
+  date DateTime @default(now())
+
+  location   Location @relation(fields: [locationId], references: [id])
+  locationId Int
+
+  employee   Employee @relation(fields: [employeeId], references: [id])
+  employeeId Int
+
+  customer   Customer? @relation(fields: [customerId], references: [id])
+  customerId Int?
+
+  subtotal Float @default(0)
+  discount Float @default(0)
+  total    Float
+
+  status    QuotationStatus @default(PENDING)
+  notes     String?
+  expiresAt DateTime?
+
+  details QuotationDetail[]
+  sales   Sale[]
+
+  pdfUrl    String?
+  createdAt DateTime @default(now())
+
+  customerNitSnapshot        String?
+  customerNitCompanySnapshot String?
+
+  customerAddressSnapshot   String?
+  customerLatitudeSnapshot  Float?
+  customerLongitudeSnapshot Float?
+
+  notifications Notification[]
+}
+
+enum QuotationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  EXPIRED
+}
+
+model QuotationDetail {
+  id Int @id @default(autoincrement())
+
+  quotation   Quotation @relation(fields: [quotationId], references: [id])
+  quotationId Int
+
+  product   Product @relation(fields: [productId], references: [id])
+  productId Int
+
+  productUnit   ProductUnit @relation(fields: [productUnitId], references: [id])
+  productUnitId Int
+
+  unitName     String
+  equivalence  Float
+  quantity     Float
+  unitPrice    Float
+  itemDiscount Float  @default(0)
+  subtotal     Float
+}
+
+model Customer {
+  id Int @id @default(autoincrement())
+
+  name         String
+  nits         CustomerNit[]
+  businessName String?
+  code         String?       @unique
+  phone        String?
+
+  whatsapp              String?
+  occupation            String?
+  originChannel         String?
+  favoritePaymentMethod String?
+  reserveAmount         Float    @default(0)
+  purchaseFrequencyDays Int?
+  createdAt             DateTime @default(now())
+
+  addresses  CustomerAddress[]
+  isVisible  Boolean           @default(true)
+  sales      Sale[]
+  quotations Quotation[]
+  activities Activity[]
+  notes      Note[]
+
+  creditPlans CreditPlan[]
+
+  isGeneric Boolean @default(false)
+}
+
+model CustomerAddress {
+  id Int @id @default(autoincrement())
+
+  customer   Customer @relation(fields: [customerId], references: [id])
+  customerId Int
+
+  label     String?
+  address   String
+  latitude  Float?
+  longitude Float?
+  reference String?
+  isPrimary Boolean  @default(false)
+  isVisible Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  sales Sale[]
+}
+
+model Activity {
+  id          Int      @id @default(autoincrement())
+  customerId  Int
+  customer    Customer @relation(fields: [customerId], references: [id])
+  type        String
+  description String
+  createdAt   DateTime @default(now())
+}
+
+model Note {
+  id         Int      @id @default(autoincrement())
+  customerId Int
+  customer   Customer @relation(fields: [customerId], references: [id])
+  content    String
+  createdAt  DateTime @default(now())
+}
+
+model Importacion {
+  id                   Int               @id @default(autoincrement())
+  supplierName         String?
+  referenceNumber      String?
+  importationDate      DateTime?
+  officialExchangeRate Decimal           @default(6.960000) @db.Decimal(12, 6)
+  bankExchangeRate     Decimal?          @db.Decimal(12, 6)
+  ivaPercent           Decimal           @default(14.9400) @db.Decimal(8, 4)
+  productCount         Int               @default(0)
+  status               ImportacionStatus @default(DRAFT)
+  snapshot             Json?
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+  notifications        Notification[]
+  Location             Location?         @relation(fields: [locationId], references: [id])
+  locationId           Int?
+}
+
+enum ImportacionStatus {
+  DRAFT
+  VERIFIED
+}
+
+model CustomerNit {
+  id          Int      @id @default(autoincrement())
+  number      String
+  companyName String?
+  isPrimary   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  customer   Customer @relation(fields: [customerId], references: [id])
+  customerId Int
+
+  sales Sale[]
+
+  @@unique([customerId, number])
+}
+
+model Notification {
+  id        Int              @id @default(autoincrement())
+  type      NotificationType
+  title     String
+  body      String
+  createdAt DateTime         @default(now())
+
+  saleId        Int?
+  transferId    Int?
+  quotationId   Int?
+  importacionId Int?
+
+  sale        Sale?        @relation(fields: [saleId], references: [id])
+  transfer    Transfer?    @relation(fields: [transferId], references: [id])
+  quotation   Quotation?   @relation(fields: [quotationId], references: [id])
+  importacion Importacion? @relation(fields: [importacionId], references: [id])
+
+  reads NotificationRead[]
+}
+
+model NotificationRead {
+  id             Int          @id @default(autoincrement())
+  notification   Notification @relation(fields: [notificationId], references: [id])
+  notificationId Int
+  employee       Employee     @relation(fields: [employeeId], references: [id])
+  employeeId     Int
+  isRead         Boolean      @default(false)
+  readAt         DateTime?
+
+  @@unique([notificationId, employeeId])
+}
+
+enum NotificationType {
+  SALE
+  TRANSFER
+  QUOTATION
+  IMPORTACION
+}
+
+model CreditPlan {
+  id Int @id @default(autoincrement())
+
+  code String @unique
+
+  sale   Sale? @relation(fields: [saleId], references: [id])
+  saleId Int?  @unique
+
+  customer   Customer @relation(fields: [customerId], references: [id])
+  customerId Int
+
+  location   Location @relation(fields: [locationId], references: [id])
+  locationId Int
+
+  employee   Employee @relation(fields: [employeeId], references: [id])
+  employeeId Int
+
+  subtotal Float @default(0)
+  discount Float @default(0)
+
+  generateInvoice Boolean @default(false)
+
+  customerNitSnapshot        String?
+  customerNitCompanySnapshot String?
+  customerAddressSnapshot    String?
+  customerLatitudeSnapshot   Float?
+  customerLongitudeSnapshot  Float?
+
+  termDays           Int
+  dueDate            DateTime
+  internalValidUntil DateTime
+
+  totalAmount Float
+  paidAmount  Float @default(0)
+
+  status      CreditPlanStatus @default(ACTIVE)
+  closedAt    DateTime?
+  convertedAt DateTime?
+  notes       String?
+
+  createdAt DateTime @default(now())
+
+  details  CreditPlanDetail[]
+  payments CreditPayment[]
+
+  @@index([status, dueDate])
+}
+
+model CreditPlanDetail {
+  id Int @id @default(autoincrement())
+
+  creditPlan   CreditPlan @relation(fields: [creditPlanId], references: [id])
+  creditPlanId Int
+
+  product   Product @relation(fields: [productId], references: [id])
+  productId Int
+
+  productUnit   ProductUnit @relation(fields: [productUnitId], references: [id])
+  productUnitId Int
+
+  unitName     String
+  equivalence  Float
+  quantity     Float
+  unitPrice    Float
+  itemDiscount Float  @default(0)
+  subtotal     Float
+}
+
+enum CreditPlanStatus {
+  ACTIVE
+  OVERDUE
+  PAID
+  CANCELLED
+}
+
+model CreditPayment {
+  id Int @id @default(autoincrement())
+
+  creditPlan   CreditPlan @relation(fields: [creditPlanId], references: [id])
+  creditPlanId Int
+
+  amount        Float
+  paymentMethod String?
+  reference     String?
+  receiptUrl    String?
+  notes         String?
+  receiptNumber Int?
+
+  employee   Employee @relation(fields: [employeeId], references: [id])
+  employeeId Int
+
+  paidAt DateTime @default(now())
+}
+
+model InventoryCross {
+  id        Int      @id @default(autoincrement())
+  code      String?
+  createdAt DateTime @default(now())
+
+  location   Location @relation(fields: [locationId], references: [id])
+  locationId Int
+
+  employee   Employee @relation(fields: [employeeId], references: [id])
+  employeeId Int
+
+  observation String?
+
+  details InventoryCrossDetail[]
+
+  @@index([createdAt])
+  @@index([locationId])
+  @@index([employeeId])
+}
+
+model InventoryCrossDetail {
+  id Int @id @default(autoincrement())
+
+  inventoryCross   InventoryCross @relation(fields: [inventoryCrossId], references: [id])
+  inventoryCrossId Int
+
+  originProduct   Product @relation("CrossOriginProduct", fields: [originProductId], references: [id])
+  originProductId Int
+
+  destinationProduct   Product @relation("CrossDestinationProduct", fields: [destinationProductId], references: [id])
+  destinationProductId Int
+
+  quantity Int
+
+  originAverageCost      Float @default(0)
+  destinationAverageCost Float @default(0)
+}
