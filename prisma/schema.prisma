@@ -249,7 +249,6 @@ model Employee {
   contracts         EmployeeContract[]
   workAssignments   WorkAssignment[]
   salaryHistory     SalaryHistory[]
-  user              User?
   payrollDetails    PayrollDetail[]
   vacationBalances  VacationBalance[]
   vacationRequests  VacationRequest[]  @relation("EmployeeVacationRequests")
@@ -406,7 +405,7 @@ model SalaryHistory {
 
 model User {
   id           Int       @id @default(autoincrement())
-  employeeId   Int?      @unique @map("employee_id")
+  roleId       Int       @map("role_id")
   name         String    @db.VarChar(120)
   email        String    @unique @db.VarChar(150)
   password     String    @db.VarChar(255)
@@ -415,11 +414,11 @@ model User {
   createdAt    DateTime  @default(now()) @map("created_at")
   updatedAt    DateTime  @updatedAt @map("updated_at")
 
-  employee               Employee?     @relation(fields: [employeeId], references: [id], onDelete: SetNull)
-  roles                  UserRole[]
+  role                   Role          @relation(fields: [roleId], references: [id], onDelete: Restrict)
   generatedPayrolls      Payroll[]
   registeredTerminations Termination[]
 
+  @@index([roleId])
   @@map("users")
 }
 
@@ -431,23 +430,9 @@ model Role {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  users UserRole[]
+  users User[]
 
   @@map("roles")
-}
-
-model UserRole {
-  id        Int      @id @default(autoincrement())
-  userId    Int      @map("user_id")
-  roleId    Int      @map("role_id")
-  createdAt DateTime @default(now()) @map("created_at")
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, roleId])
-  @@index([roleId])
-  @@map("user_roles")
 }
 
 // ======================================================
