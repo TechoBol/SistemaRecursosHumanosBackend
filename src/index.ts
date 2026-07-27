@@ -8,15 +8,10 @@ import locationSocketInstance from './sockets/sucursal.sockets'
 import employeeSocketInstance from './sockets/trbajador.sockets'
 import rolSocketInstance from './sockets/roles.sockets'
 import { initNotificationSocket } from './sockets/notification.sockets'
-import { seedGenericCustomer } from './utils/genericCustomer'
-import { startExpireQuotationsJob } from "./utils/expireQuotations.job ";
-import { startCreditPlansJob } from './utils/expireCreditPlans.job'
 
 config()
 
 const port = process.env.PORT
-startExpireQuotationsJob();
-startCreditPlansJob();
 
 const server = http.createServer(app)
 const io = new SocketServer(server, {
@@ -37,6 +32,5 @@ app.set("io", io);
 const host = '0.0.0.0'
 
 server.listen({ port, host }, async () => {
-  await seedGenericCustomer()              
   console.log(`Server running on port ${port}`)
 })

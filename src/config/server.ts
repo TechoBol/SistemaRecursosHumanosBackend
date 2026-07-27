@@ -3,22 +3,8 @@ import cors from 'cors'
 import morgan from 'morgan'
 import compression from 'compression'
 import authenticationRoute from '../routes/authentication.routes'
-import productRoute from '../routes/product.routes'
-import lineRoute from '../routes/line.routes'
-import saleRoute from '../routes/sale.routes'
-import customerRoute from '../routes/customer.routes'
-import locationRoute from '../routes/location.routes'
-import employeeRoute from '../routes/employee.routes'
-import roleRoute from '../routes/role.routes'
-import transferRoute from '../routes/transferencias.routes'
-import dashboardRoutes from "../routes/dashboard.routes";
-import quotationRoutes from "../routes/quotation.routes";
-import notificationRoutes from "../routes/notification.routes";
-import importationRoute from "../routes/importation.routes";
-import creditRoute from "../routes/credit.routes";
-import unitRoute from "../routes/unit.routes";
 
-import { verifyToken } from '../middleware/auth.middleware'
+//import { verifyToken } from '../middleware/auth.middleware'
 
 const app = express()
 
@@ -30,19 +16,6 @@ app.use(urlencoded({ extended: true }))
 
 
 app.use('/api/authentication', authenticationRoute)
-app.use('/api/product',verifyToken, productRoute)
-app.use('/api/line',verifyToken, lineRoute)
-app.use('/api/sale',verifyToken, saleRoute)
-app.use('/api/customer',verifyToken, customerRoute)
-app.use('/api/location',verifyToken, locationRoute)
-app.use('/api/employee',verifyToken, employeeRoute)
-app.use('/api/role',verifyToken, roleRoute)
-app.use('/api/transfer',verifyToken, transferRoute)
-app.use('/api/dashboard', verifyToken, dashboardRoutes)
-app.use("/api/quotations", quotationRoutes);
-app.use("/api/notifications", notificationRoutes);
-app.use("/api/importation", verifyToken, importationRoute);
-app.use("/api/credit", verifyToken, creditRoute)
-app.use("/api/unit", verifyToken, unitRoute);
+//app.use('/api/product',verifyToken, productRoute)
 
 export default app

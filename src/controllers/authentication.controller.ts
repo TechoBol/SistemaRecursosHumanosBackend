@@ -4,7 +4,7 @@ import prisma from "../config/db";
 import jwt, { JwtPayload } from "jsonwebtoken";
 import bcrypt from "bcrypt";
 
-import { getOneEmployeeToValidateToken } from "../repository/employee.repository";
+import { getOneUserToValidateToken } from "../repository/user.repository";
 config();
 
 export const signIn = async (req: Request, res: Response) => {
@@ -17,36 +17,26 @@ export const signIn = async (req: Request, res: Response) => {
       });
     }
 
-    const employee = await prisma.employee.findFirst({
+    const user = await prisma.user.findFirst({
       where: {
         email,
-        isVisible: true,
+        isActive: true,
       },
       select: {
         id: true,
         name: true,
-        lastName: true,
         email: true,
         password: true,
         role: {
           select: {
-            name: true,
-            level: true,
-          },
-        },
-        location: {
-          select: {
             id: true,
             name: true,
-            type: true,
-            abbreviation: true,
-            saleCounter: true,
           },
         },
       },
     });
 
-    if (!employee) {
+    if (!user) {
       return res.status(400).json({
         message: "user not found",
       });
@@ -54,7 +44,7 @@ export const signIn = async (req: Request, res: Response) => {
 
     const passwordValid = await bcrypt.compare(
       password,
-      employee.password as string,
+      user.password as string,
     );
 
     if (!passwordValid) {
@@ -65,29 +55,27 @@ export const signIn = async (req: Request, res: Response) => {
 
     // 🔥 PAYLOAD
     const payload = {
-      id: employee.id,
-      email: employee.email,
-      role: employee.role?.name,
-      level: employee.role?.level,
-      locationId: employee.location ? employee.location.id : null,
+      id: user.id,
+      email: user.email,
+      roleId: user.role?.id,
+      role: user.role?.name,
     };
 
     // 🔥 TOKEN
-    const token =
-      employee.role?.level === 1
-        ? jwt.sign(payload, process.env.JWTSECRET as string)
-        : jwt.sign(payload, process.env.JWTSECRET as string, {
-            expiresIn: "1d",
-          });
+    const token = jwt.sign(payload, process.env.JWTSECRET as string, {
+      expiresIn: "1d",
+    });
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { lastAccessAt: new Date() },
+    });
 
     return res.json({
-      id: employee.id,
-      name: employee.name,
-      lastName: employee.lastName,
-      email: employee.email,
-      role: employee.role?.name,
-      level: employee.role?.level,
-      location: employee.location,
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role?.name,
       token,
     });
   } catch (err) {
@@ -98,19 +86,19 @@ export const signIn = async (req: Request, res: Response) => {
     });
   }
 };
+
 export const validateToken = async (req: Request, res: Response) => {
   try {
     const response = jwt.verify(
       req.body.token,
       process.env.JWTSECRET as string,
-    );
+    ) as JwtPayload;
 
-    const password = (response as JwtPayload).password;
-    const id = (response as JwtPayload).id;
+    const id = response.id;
 
-    const employeeFound = await getOneEmployeeToValidateToken(id, password);
+    const userFound = await getOneUserToValidateToken(id);
 
-    if (!employeeFound) {
+    if (!userFound) {
       return res.status(400).json({ message: "token is invalid" });
     }
 
