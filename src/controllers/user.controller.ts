@@ -53,11 +53,11 @@ export const getUserById = async (req: Request, res: Response) => {
 
 export const createUser = async (req: Request, res: Response) => {
   try {
-    const { name, email, password, roleId } = req.body
+    const { firstName, lastName, email, password, roleId } = req.body
 
-    if (!name || !email || !password || !roleId) {
+    if (!firstName || !lastName || !email || !password || !roleId) {
       return res.status(400).json({
-        message: 'Nombre, correo, contraseña y rol son obligatorios',
+        message: 'Nombre, apellido, correo, contraseña y rol son obligatorios',
       })
     }
 
@@ -74,7 +74,8 @@ export const createUser = async (req: Request, res: Response) => {
     const hashedPassword = await bcrypt.hash(password, 10)
 
     const user = await createUserRepository({
-      name: String(name).trim(),
+      firstName: String(firstName).trim(),
+      lastName: String(lastName).trim(),
       email: normalizedEmail,
       password: hashedPassword,
       roleId: Number(roleId),
@@ -96,7 +97,7 @@ export const createUser = async (req: Request, res: Response) => {
 export const updateUser = async (req: Request, res: Response) => {
   try {
     const id = Number(req.params.id)
-    const { name, email, password, roleId, isActive } = req.body
+    const { firstName, lastName, email, password, roleId, isActive } = req.body
 
     if (!Number.isInteger(id) || id <= 0) {
       return res.status(400).json({
@@ -113,15 +114,20 @@ export const updateUser = async (req: Request, res: Response) => {
     }
 
     const data: {
-      name?: string
+      firstName?: string
+      lastName?: string
       email?: string
       password?: string
       roleId?: number
       isActive?: boolean
     } = {}
 
-    if (name !== undefined) {
-      data.name = String(name).trim()
+    if (firstName !== undefined) {
+      data.firstName = String(firstName).trim()
+    }
+
+    if (lastName !== undefined) {
+      data.lastName = String(lastName).trim()
     }
 
     if (email !== undefined) {

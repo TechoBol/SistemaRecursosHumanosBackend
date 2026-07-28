@@ -405,8 +405,9 @@ model SalaryHistory {
 
 model User {
   id           Int       @id @default(autoincrement())
+  firstName    String    @default("") @map("first_name") @db.VarChar(100)
+  lastName     String    @default("") @map("last_name") @db.VarChar(100)
   roleId       Int       @map("role_id")
-  name         String    @db.VarChar(120)
   email        String    @unique @db.VarChar(150)
   password     String    @db.VarChar(255)
   isActive     Boolean   @default(true) @map("is_active")

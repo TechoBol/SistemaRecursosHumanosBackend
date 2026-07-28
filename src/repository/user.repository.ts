@@ -7,7 +7,8 @@ export const getOneUserToValidateToken = async (id: number) => {
     },
     select: {
       id: true,
-      name: true,
+      firstName: true,
+      lastName: true,
       email: true,
       isActive: true,
       role: {
@@ -27,7 +28,8 @@ export const getAllUsersRepository = async () => {
     },
     select: {
       id: true,
-      name: true,
+      firstName: true,
+      lastName: true,
       email: true,
       isActive: true,
       lastAccessAt: true,
@@ -39,9 +41,10 @@ export const getAllUsersRepository = async () => {
         },
       },
     },
-    orderBy: {
-      name: 'asc',
-    },
+    orderBy: [
+      { firstName: 'asc' },
+      { lastName: 'asc' }
+    ],
   })
 }
 
@@ -52,7 +55,8 @@ export const getUserByIdRepository = async (id: number) => {
     },
     select: {
       id: true,
-      name: true,
+      firstName: true,
+      lastName: true,
       email: true,
       roleId: true,
       isActive: true,
@@ -77,7 +81,8 @@ export const getUserByEmailRepository = async (email: string) => {
 }
 
 export const createUserRepository = async (data: {
-  name: string
+  firstName: string
+  lastName: string
   email: string
   password: string
   roleId: number
@@ -86,7 +91,8 @@ export const createUserRepository = async (data: {
     data,
     select: {
       id: true,
-      name: true,
+      firstName: true,
+      lastName: true,
       email: true,
       isActive: true,
       createdAt: true,
@@ -103,7 +109,8 @@ export const createUserRepository = async (data: {
 export const updateUserRepository = async (
   id: number,
   data: {
-    name?: string
+    firstName?: string
+    lastName?: string
     email?: string
     password?: string
     roleId?: number
@@ -117,7 +124,8 @@ export const updateUserRepository = async (
     data,
     select: {
       id: true,
-      name: true,
+      firstName: true,
+      lastName: true,
       email: true,
       isActive: true,
       lastAccessAt: true,
@@ -142,7 +150,8 @@ export const deleteUserRepository = async (id: number) => {
     },
     select: {
       id: true,
-      name: true,
+      firstName: true,
+      lastName: true,
       email: true,
       isActive: true,
     },

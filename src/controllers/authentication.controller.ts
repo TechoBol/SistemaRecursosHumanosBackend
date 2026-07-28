@@ -24,7 +24,8 @@ export const signIn = async (req: Request, res: Response) => {
       },
       select: {
         id: true,
-        name: true,
+        firstName: true,
+        lastName: true,
         email: true,
         password: true,
         isActive: true,
@@ -82,7 +83,7 @@ export const signIn = async (req: Request, res: Response) => {
 
     return res.status(200).json({
       id: user.id,
-      name: user.name,
+      name: `${user.firstName} ${user.lastName}`.trim(),
       email: user.email,
       role: {
         id: user.role.id,
@@ -137,7 +138,7 @@ export const validateToken = async (req: Request, res: Response) => {
       message: "Token válido",
       user: {
         id: userFound.id,
-        name: userFound.name,
+        name: `${userFound.firstName} ${userFound.lastName}`.trim(),
         email: userFound.email,
         role: userFound.role,
       },
