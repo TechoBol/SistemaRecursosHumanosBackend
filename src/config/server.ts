@@ -6,6 +6,7 @@ import authenticationRoute from "../routes/authentication.routes";
 import { verifyToken } from "../middleware/auth.middleware";
 import roleRoute from "../routes/role.routes";
 import userRoute from "../routes/user.routes";
+import companyRoute from "../routes/company.routes";
 
 const app = express();
 
@@ -21,5 +22,6 @@ app.use("/api/authentication", authenticationRoute);
 // Rutas protegidas
 app.use("/api/role", verifyToken, roleRoute);
 app.use("/api/user", verifyToken, userRoute);
+app.use("/api/company", verifyToken, companyRoute);
 
 export default app;
