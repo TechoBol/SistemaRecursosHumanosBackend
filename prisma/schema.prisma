@@ -115,8 +115,6 @@ model Company {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   branches          CompanyBranch[]
-  areas             CompanyArea[]
-  jobTitles         CompanyJobTitle[]
   employeeContracts EmployeeContract[]
   workAssignments   WorkAssignment[]
   payrolls          Payroll[]
@@ -125,22 +123,39 @@ model Company {
 }
 
 // ======================================================
-// BRANCHES
+// CITIES
 // ======================================================
 
-model Branch {
+model City {
   id        Int      @id @default(autoincrement())
-  name      String   @db.VarChar(120)
-  state     String?  @db.VarChar(100)
-  address   String?  @db.VarChar(255)
+  name      String   @unique @db.VarChar(120)
   isActive  Boolean  @default(true) @map("is_active")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
+  branches Branch[]
+
+  @@map("cities")
+}
+
+// ======================================================
+// BRANCHES
+// ======================================================
+
+model Branch {
+  id          Int      @id @default(autoincrement())
+  cityId      Int      @map("city_id")
+  name        String   @db.VarChar(120)
+  description String?  @db.Text
+  address     String?  @db.VarChar(255)
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  city            City             @relation(fields: [cityId], references: [id], onDelete: Restrict)
   companies       CompanyBranch[]
   workAssignments WorkAssignment[]
 
-  @@unique([name, state, address])
   @@map("branches")
 }
 
@@ -172,26 +187,10 @@ model Area {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  companies       CompanyArea[]
+  jobTitles       AreaJobTitle[]
   workAssignments WorkAssignment[]
 
   @@map("areas")
-}
-
-model CompanyArea {
-  id        Int      @id @default(autoincrement())
-  companyId Int      @map("company_id")
-  areaId    Int      @map("area_id")
-  isActive  Boolean  @default(true) @map("is_active")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  company Company @relation(fields: [companyId], references: [id], onDelete: Restrict)
-  area    Area    @relation(fields: [areaId], references: [id], onDelete: Restrict)
-
-  @@unique([companyId, areaId])
-  @@index([areaId])
-  @@map("company_areas")
 }
 
 // ======================================================
@@ -206,26 +205,27 @@ model JobTitle {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  companies       CompanyJobTitle[]
+  areas           AreaJobTitle[]
   workAssignments WorkAssignment[]
 
   @@map("job_titles")
 }
 
-model CompanyJobTitle {
+model AreaJobTitle {
   id         Int      @id @default(autoincrement())
-  companyId  Int      @map("company_id")
+  areaId     Int      @map("area_id")
   jobTitleId Int      @map("job_title_id")
   isActive   Boolean  @default(true) @map("is_active")
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
 
-  company  Company  @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  area     Area     @relation(fields: [areaId], references: [id], onDelete: Restrict)
   jobTitle JobTitle @relation(fields: [jobTitleId], references: [id], onDelete: Restrict)
 
-  @@unique([companyId, jobTitleId])
+  @@unique([areaId, jobTitleId])
+  @@index([areaId])
   @@index([jobTitleId])
-  @@map("company_job_titles")
+  @@map("area_job_titles")
 }
 
 // ======================================================
@@ -405,9 +405,9 @@ model SalaryHistory {
 
 model User {
   id           Int       @id @default(autoincrement())
+  roleId       Int       @map("role_id")
   firstName    String    @default("") @map("first_name") @db.VarChar(100)
   lastName     String    @default("") @map("last_name") @db.VarChar(100)
-  roleId       Int       @map("role_id")
   email        String    @unique @db.VarChar(150)
   password     String    @db.VarChar(255)
   isActive     Boolean   @default(true) @map("is_active")

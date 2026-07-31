@@ -115,15 +115,15 @@ CREATE TABLE "job_titles" (
 );
 
 -- CreateTable
-CREATE TABLE "company_job_titles" (
+CREATE TABLE "area_job_titles" (
     "id" SERIAL NOT NULL,
-    "company_id" INTEGER NOT NULL,
+    "area_id" INTEGER NOT NULL,
     "job_title_id" INTEGER NOT NULL,
     "is_active" BOOLEAN NOT NULL DEFAULT true,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
-    CONSTRAINT "company_job_titles_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "area_job_titles_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -225,14 +225,14 @@ CREATE TABLE "salary_history" (
 -- CreateTable
 CREATE TABLE "users" (
     "id" SERIAL NOT NULL,
-    "employee_id" INTEGER,
-    "name" VARCHAR(120) NOT NULL,
+    "role_id" INTEGER NOT NULL,
+    "first_name" VARCHAR(100) NOT NULL DEFAULT '',
+    "last_name" VARCHAR(100) NOT NULL DEFAULT '',
     "email" VARCHAR(150) NOT NULL,
     "password" VARCHAR(255) NOT NULL,
     "is_active" BOOLEAN NOT NULL DEFAULT true,
     "last_access_at" TIMESTAMP(3),
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "users_pkey" PRIMARY KEY ("id")
 );
@@ -244,19 +244,8 @@ CREATE TABLE "roles" (
     "description" TEXT,
     "is_active" BOOLEAN NOT NULL DEFAULT true,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "roles_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "user_roles" (
-    "id" SERIAL NOT NULL,
-    "user_id" INTEGER NOT NULL,
-    "role_id" INTEGER NOT NULL,
-    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "user_roles_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -532,10 +521,13 @@ CREATE UNIQUE INDEX "company_areas_company_id_area_id_key" ON "company_areas"("c
 CREATE UNIQUE INDEX "job_titles_name_key" ON "job_titles"("name");
 
 -- CreateIndex
-CREATE INDEX "company_job_titles_job_title_id_idx" ON "company_job_titles"("job_title_id");
+CREATE INDEX "area_job_titles_area_id_idx" ON "area_job_titles"("area_id");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "company_job_titles_company_id_job_title_id_key" ON "company_job_titles"("company_id", "job_title_id");
+CREATE INDEX "area_job_titles_job_title_id_idx" ON "area_job_titles"("job_title_id");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "area_job_titles_area_id_job_title_id_key" ON "area_job_titles"("area_id", "job_title_id");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "employees_document_number_key" ON "employees"("document_number");
@@ -583,19 +575,13 @@ CREATE INDEX "salary_history_employee_id_is_current_idx" ON "salary_history"("em
 CREATE INDEX "salary_history_contract_id_idx" ON "salary_history"("contract_id");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "users_employee_id_key" ON "users"("employee_id");
-
--- CreateIndex
 CREATE UNIQUE INDEX "users_email_key" ON "users"("email");
 
 -- CreateIndex
+CREATE INDEX "users_role_id_idx" ON "users"("role_id");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "roles_name_key" ON "roles"("name");
-
--- CreateIndex
-CREATE INDEX "user_roles_role_id_idx" ON "user_roles"("role_id");
-
--- CreateIndex
-CREATE UNIQUE INDEX "user_roles_user_id_role_id_key" ON "user_roles"("user_id", "role_id");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "payroll_periods_year_month_key" ON "payroll_periods"("year", "month");
@@ -709,10 +695,10 @@ ALTER TABLE "company_areas" ADD CONSTRAINT "company_areas_company_id_fkey" FOREI
 ALTER TABLE "company_areas" ADD CONSTRAINT "company_areas_area_id_fkey" FOREIGN KEY ("area_id") REFERENCES "areas"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "company_job_titles" ADD CONSTRAINT "company_job_titles_company_id_fkey" FOREIGN KEY ("company_id") REFERENCES "companies"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "area_job_titles" ADD CONSTRAINT "area_job_titles_area_id_fkey" FOREIGN KEY ("area_id") REFERENCES "areas"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "company_job_titles" ADD CONSTRAINT "company_job_titles_job_title_id_fkey" FOREIGN KEY ("job_title_id") REFERENCES "job_titles"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "area_job_titles" ADD CONSTRAINT "area_job_titles_job_title_id_fkey" FOREIGN KEY ("job_title_id") REFERENCES "job_titles"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "emergency_contacts" ADD CONSTRAINT "emergency_contacts_employee_id_fkey" FOREIGN KEY ("employee_id") REFERENCES "employees"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -748,13 +734,7 @@ ALTER TABLE "salary_history" ADD CONSTRAINT "salary_history_employee_id_fkey" FO
 ALTER TABLE "salary_history" ADD CONSTRAINT "salary_history_contract_id_fkey" FOREIGN KEY ("contract_id") REFERENCES "employee_contracts"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "users" ADD CONSTRAINT "users_employee_id_fkey" FOREIGN KEY ("employee_id") REFERENCES "employees"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "user_roles" ADD CONSTRAINT "user_roles_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "user_roles" ADD CONSTRAINT "user_roles_role_id_fkey" FOREIGN KEY ("role_id") REFERENCES "roles"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "users" ADD CONSTRAINT "users_role_id_fkey" FOREIGN KEY ("role_id") REFERENCES "roles"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "payrolls" ADD CONSTRAINT "payrolls_payroll_period_id_fkey" FOREIGN KEY ("payroll_period_id") REFERENCES "payroll_periods"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
