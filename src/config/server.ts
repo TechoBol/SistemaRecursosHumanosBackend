@@ -7,6 +7,7 @@ import { verifyToken } from "../middleware/auth.middleware";
 import roleRoute from "../routes/role.routes";
 import userRoute from "../routes/user.routes";
 import companyRoute from "../routes/company.routes";
+import areaRoute from "../routes/area.routes";
 
 const app = express();
 
@@ -23,5 +24,6 @@ app.use("/api/authentication", authenticationRoute);
 app.use("/api/role", verifyToken, roleRoute);
 app.use("/api/user", verifyToken, userRoute);
 app.use("/api/company", verifyToken, companyRoute);
+app.use("/api/area", verifyToken, areaRoute);
 
 export default app;
