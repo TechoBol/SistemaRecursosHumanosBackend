@@ -10,6 +10,7 @@ import companyRoute from "../routes/company.routes";
 import areaRoute from "../routes/area.routes";
 import cityRoute from "../routes/city.routes";
 import branchRoute from "../routes/branch.routes";
+import jobTitleRoute from "../routes/jobTitle.routes";
 
 const app = express();
 
@@ -29,5 +30,6 @@ app.use("/api/company", verifyToken, companyRoute);
 app.use("/api/area", verifyToken, areaRoute);
 app.use("/api/city", verifyToken, cityRoute);
 app.use("/api/branch", verifyToken, branchRoute);
+app.use("/api/job-title", verifyToken, jobTitleRoute);
 
 export default app;
