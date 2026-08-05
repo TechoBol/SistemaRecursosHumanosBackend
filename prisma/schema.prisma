@@ -7,14 +7,15 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ======================================================
-// ENUMS
-// ======================================================
-
 enum EmployeeStatus {
   ACTIVE
   INACTIVE
   TERMINATED
+}
+
+enum ContractType {
+  INDEFINITE
+  CONSULTING
 }
 
 enum ContractStatus {
@@ -23,87 +24,57 @@ enum ContractStatus {
   CANCELLED
 }
 
-enum PayrollPeriodStatus {
-  OPEN
-  PROCESSED
-  CLOSED
-}
-
-enum PayrollCriteria {
-  CONTRACTING_COMPANY
-  CONSOLIDATED_COMPANY
-}
-
 enum PayrollStatus {
   DRAFT
   GENERATED
   APPROVED
-  CLOSED
+  PAID
   CANCELLED
 }
 
-enum PayrollConceptType {
-  EARNING
-  DEDUCTION
+enum EmployeeDocumentType {
+  RESUME
+  IDENTITY_DOCUMENT
+  CONTRACT
+  CERTIFICATE
+  OTHER
 }
 
-enum RequestStatus {
-  PENDING
-  APPROVED
-  REJECTED
-  CANCELLED
+enum MemorandumType {
+  POSITIVE
+  NEGATIVE
 }
 
-enum WorkIncidentCategory {
+enum AttendanceIncidentType {
   PERMISSION
   ABSENCE
-  DELAY
-  LEAVE
-  SICK_LEAVE
 }
 
-enum WorkIncidentStatus {
-  PENDING
-  APPROVED
-  REJECTED
-  CANCELLED
+enum AttendanceDurationType {
+  HOURS
+  HALF_DAY
+  FULL_DAY
 }
 
-enum MemorandumStatus {
-  DRAFT
-  ISSUED
-  CANCELLED
+enum EmployeeMovementType {
+  BONUS
+  DISCOUNT
+  ADVANCE
 }
 
-enum SalaryAdvanceStatus {
-  PENDING
-  APPROVED
-  REJECTED
-  PAID
-  CANCELLED
-}
-
-enum SalaryAdvanceInstallmentStatus {
-  PENDING
-  DEDUCTED
-  PAID
-  CANCELLED
-}
-
-enum SalaryEventCategory {
-  EARNING
-  DEDUCTION
-}
-
-enum SalaryEventStatus {
+enum EmployeeMovementStatus {
   PENDING
   APPLIED
   CANCELLED
 }
 
-// ======================================================
-// COMPANIES
-// ======================================================
+enum TerminationType {
+  RESIGNATION
+  DISMISSAL
+  CONTRACT_END
+  MUTUAL_AGREEMENT
+  OTHER
+}
 
 model Company {
   id        Int      @id @default(autoincrement())
@@ -114,17 +85,14 @@ model Company {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  branches          CompanyBranch[]
-  employeeContracts EmployeeContract[]
-  workAssignments   WorkAssignment[]
-  payrolls          Payroll[]
+  branches                      CompanyBranch[]
+  contractualEmployeeContracts  EmployeeContract[] @relation("ContractCompany")
+  consolidatedEmployeeContracts EmployeeContract[] @relation("ConsolidatedCompany")
+  contractualEmployeePayrolls   EmployeePayroll[]  @relation("PayrollContractCompany")
+  consolidatedEmployeePayrolls  EmployeePayroll[]  @relation("PayrollConsolidatedCompany")
 
   @@map("companies")
 }
-
-// ======================================================
-// CITIES
-// ======================================================
 
 model City {
   id        Int      @id @default(autoincrement())
@@ -138,10 +106,6 @@ model City {
   @@map("cities")
 }
 
-// ======================================================
-// BRANCHES
-// ======================================================
-
 model Branch {
   id          Int      @id @default(autoincrement())
   cityId      Int      @map("city_id")
@@ -152,9 +116,9 @@ model Branch {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  city            City             @relation(fields: [cityId], references: [id], onDelete: Restrict)
-  companies       CompanyBranch[]
-  workAssignments WorkAssignment[]
+  city      City               @relation(fields: [cityId], references: [id], onDelete: Restrict)
+  companies CompanyBranch[]
+  contracts EmployeeContract[]
 
   @@map("branches")
 }
@@ -175,10 +139,6 @@ model CompanyBranch {
   @@map("company_branches")
 }
 
-// ======================================================
-// AREAS
-// ======================================================
-
 model Area {
   id          Int      @id @default(autoincrement())
   name        String   @unique @db.VarChar(120)
@@ -187,15 +147,11 @@ model Area {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  jobTitles       AreaJobTitle[]
-  workAssignments WorkAssignment[]
+  jobTitles AreaJobTitle[]
+  contracts EmployeeContract[]
 
   @@map("areas")
 }
-
-// ======================================================
-// JOB TITLES
-// ======================================================
 
 model JobTitle {
   id          Int      @id @default(autoincrement())
@@ -205,8 +161,8 @@ model JobTitle {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  areas           AreaJobTitle[]
-  workAssignments WorkAssignment[]
+  areas     AreaJobTitle[]
+  contracts EmployeeContract[]
 
   @@map("job_titles")
 }
@@ -228,181 +184,6 @@ model AreaJobTitle {
   @@map("area_job_titles")
 }
 
-// ======================================================
-// EMPLOYEES
-// ======================================================
-
-model Employee {
-  id             Int            @id @default(autoincrement())
-  firstNames     String         @map("first_names") @db.VarChar(120)
-  lastNames      String         @map("last_names") @db.VarChar(160)
-  documentNumber String         @unique @map("document_number") @db.VarChar(30)
-  birthDate      DateTime?      @map("birth_date") @db.Date
-  phone          String?        @db.VarChar(30)
-  email          String?        @unique @db.VarChar(150)
-  address        String?        @db.VarChar(255)
-  status         EmployeeStatus @default(ACTIVE)
-  createdAt      DateTime       @default(now()) @map("created_at")
-  updatedAt      DateTime       @updatedAt @map("updated_at")
-
-  emergencyContacts EmergencyContact[]
-  contracts         EmployeeContract[]
-  workAssignments   WorkAssignment[]
-  salaryHistory     SalaryHistory[]
-  payrollDetails    PayrollDetail[]
-  vacationBalances  VacationBalance[]
-  vacationRequests  VacationRequest[]  @relation("EmployeeVacationRequests")
-
-  approvedVacationRequests VacationRequest[] @relation("VacationRequestApprover")
-
-  workIncidents         WorkIncident[] @relation("EmployeeWorkIncidents")
-  approvedWorkIncidents WorkIncident[] @relation("WorkIncidentApprover")
-
-  receivedMemorandums Memorandum[] @relation("MemorandumRecipient")
-  issuedMemorandums   Memorandum[] @relation("MemorandumIssuer")
-
-  salaryAdvances         SalaryAdvance[] @relation("EmployeeSalaryAdvances")
-  approvedSalaryAdvances SalaryAdvance[] @relation("SalaryAdvanceApprover")
-
-  salaryEvents SalaryEvent[]
-  terminations Termination[]
-
-  @@index([status])
-  @@map("employees")
-}
-
-// ======================================================
-// EMERGENCY CONTACTS
-// ======================================================
-
-model EmergencyContact {
-  id             Int      @id @default(autoincrement())
-  employeeId     Int      @map("employee_id")
-  fullName       String   @map("full_name") @db.VarChar(160)
-  relationship   String   @db.VarChar(60)
-  phone          String   @db.VarChar(30)
-  secondaryPhone String?  @map("secondary_phone") @db.VarChar(30)
-  address        String?  @db.VarChar(255)
-  isActive       Boolean  @default(true) @map("is_active")
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
-
-  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-
-  @@index([employeeId])
-  @@map("emergency_contacts")
-}
-
-// ======================================================
-// CONTRACT TYPES
-// ======================================================
-
-model ContractType {
-  id          Int      @id @default(autoincrement())
-  name        String   @unique @db.VarChar(100)
-  description String?  @db.Text
-  isActive    Boolean  @default(true) @map("is_active")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-
-  employeeContracts EmployeeContract[]
-
-  @@map("contract_types")
-}
-
-// ======================================================
-// EMPLOYEE CONTRACTS
-// ======================================================
-
-model EmployeeContract {
-  id                   Int            @id @default(autoincrement())
-  employeeId           Int            @map("employee_id")
-  contractingCompanyId Int            @map("contracting_company_id")
-  contractTypeId       Int            @map("contract_type_id")
-  startDate            DateTime       @map("start_date") @db.Date
-  endDate              DateTime?      @map("end_date") @db.Date
-  status               ContractStatus @default(ACTIVE)
-  documentUrl          String?        @map("document_url") @db.VarChar(500)
-  notes                String?        @db.Text
-  createdAt            DateTime       @default(now()) @map("created_at")
-  updatedAt            DateTime       @updatedAt @map("updated_at")
-
-  employee           Employee     @relation(fields: [employeeId], references: [id], onDelete: Restrict)
-  contractingCompany Company      @relation(fields: [contractingCompanyId], references: [id], onDelete: Restrict)
-  contractType       ContractType @relation(fields: [contractTypeId], references: [id], onDelete: Restrict)
-
-  salaryHistory  SalaryHistory[]
-  payrollDetails PayrollDetail[]
-  terminations   Termination[]
-
-  @@index([employeeId])
-  @@index([contractingCompanyId, status])
-  @@index([contractTypeId])
-  @@map("employee_contracts")
-}
-
-// ======================================================
-// WORK ASSIGNMENTS
-// ======================================================
-
-model WorkAssignment {
-  id                    Int       @id @default(autoincrement())
-  employeeId            Int       @map("employee_id")
-  consolidatedCompanyId Int       @map("consolidated_company_id")
-  branchId              Int       @map("branch_id")
-  areaId                Int       @map("area_id")
-  jobTitleId            Int       @map("job_title_id")
-  startDate             DateTime  @map("start_date") @db.Date
-  endDate               DateTime? @map("end_date") @db.Date
-  isCurrent             Boolean   @default(true) @map("is_current")
-  createdAt             DateTime  @default(now()) @map("created_at")
-  updatedAt             DateTime  @updatedAt @map("updated_at")
-
-  employee            Employee @relation(fields: [employeeId], references: [id], onDelete: Restrict)
-  consolidatedCompany Company  @relation(fields: [consolidatedCompanyId], references: [id], onDelete: Restrict)
-  branch              Branch   @relation(fields: [branchId], references: [id], onDelete: Restrict)
-  area                Area     @relation(fields: [areaId], references: [id], onDelete: Restrict)
-  jobTitle            JobTitle @relation(fields: [jobTitleId], references: [id], onDelete: Restrict)
-
-  payrollDetails PayrollDetail[]
-
-  @@index([employeeId, isCurrent])
-  @@index([consolidatedCompanyId, isCurrent])
-  @@index([branchId])
-  @@index([areaId])
-  @@index([jobTitleId])
-  @@map("work_assignments")
-}
-
-// ======================================================
-// SALARY HISTORY
-// ======================================================
-
-model SalaryHistory {
-  id           Int       @id @default(autoincrement())
-  employeeId   Int       @map("employee_id")
-  contractId   Int       @map("contract_id")
-  baseSalary   Decimal   @map("base_salary") @db.Decimal(12, 2)
-  currency     String    @default("BOB") @db.VarChar(10)
-  startDate    DateTime  @map("start_date") @db.Date
-  endDate      DateTime? @map("end_date") @db.Date
-  isCurrent    Boolean   @default(true) @map("is_current")
-  changeReason String?   @map("change_reason") @db.Text
-  createdAt    DateTime  @default(now()) @map("created_at")
-  updatedAt    DateTime  @updatedAt @map("updated_at")
-
-  employee Employee         @relation(fields: [employeeId], references: [id], onDelete: Restrict)
-  contract EmployeeContract @relation(fields: [contractId], references: [id], onDelete: Restrict)
-
-  @@index([employeeId, isCurrent])
-  @@index([contractId])
-  @@map("salary_history")
-}
-
-// ======================================================
-// USERS AND ROLES
-// ======================================================
-
 model User {
   id           Int       @id @default(autoincrement())
   roleId       Int       @map("role_id")
@@ -414,8 +195,9 @@ model User {
   lastAccessAt DateTime? @map("last_access_at")
   createdAt    DateTime  @default(now()) @map("created_at")
 
-  role                   Role          @relation(fields: [roleId], references: [id], onDelete: Restrict)
-  generatedPayrolls      Payroll[]
+  role                   Role              @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  generatedPayrolls      EmployeePayroll[]
+  createdMemorandums     Memorandum[]
   registeredTerminations Termination[]
 
   @@index([roleId])
@@ -434,343 +216,236 @@ model Role {
   @@map("roles")
 }
 
-// ======================================================
-// PAYROLL PERIODS
-// ======================================================
+model Employee {
+  id             Int            @id @default(autoincrement())
+  firstNames     String         @map("first_names") @db.VarChar(120)
+  lastNames      String         @map("last_names") @db.VarChar(160)
+  documentNumber String         @unique @map("document_number") @db.VarChar(30)
+  birthDate      DateTime?      @map("birth_date") @db.Date
+  phone          String?        @db.VarChar(30)
+  email          String?        @unique @db.VarChar(150)
+  address        String?        @db.VarChar(255)
+  status         EmployeeStatus @default(ACTIVE)
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
 
-model PayrollPeriod {
-  id        Int                 @id @default(autoincrement())
-  year      Int
-  month     Int
-  startDate DateTime            @map("start_date") @db.Date
-  endDate   DateTime            @map("end_date") @db.Date
-  status    PayrollPeriodStatus @default(OPEN)
-  createdAt DateTime            @default(now()) @map("created_at")
-  updatedAt DateTime            @updatedAt @map("updated_at")
+  contracts         EmployeeContract[]
+  emergencyContacts EmergencyContact[]
+  documents         EmployeeDocument[]
+  memorandums       Memorandum[]
+  incidents         AttendanceIncident[]
+  vacations         Vacation[]
+  movements         EmployeeMovement[]
+  payrolls          EmployeePayroll[]
+  terminations      Termination[]
 
-  payrolls                  Payroll[]
-  salaryAdvanceInstallments SalaryAdvanceInstallment[]
-  salaryEvents              SalaryEvent[]
-
-  @@unique([year, month])
-  @@map("payroll_periods")
+  @@index([status])
+  @@map("employees")
 }
 
-// ======================================================
-// PAYROLLS
-// ======================================================
+model EmployeeContract {
+  id                    Int            @id @default(autoincrement())
+  employeeId            Int            @map("employee_id")
+  contractCompanyId     Int            @map("contract_company_id")
+  consolidatedCompanyId Int            @map("consolidated_company_id")
+  branchId              Int            @map("branch_id")
+  areaId                Int            @map("area_id")
+  jobTitleId            Int            @map("job_title_id")
+  contractType          ContractType   @map("contract_type")
+  hireDate              DateTime       @map("hire_date") @db.Date
+  endDate               DateTime?      @map("end_date") @db.Date
+  baseSalary            Decimal        @map("base_salary") @db.Decimal(12, 2)
+  status                ContractStatus @default(ACTIVE)
+  isActive              Boolean        @default(true) @map("is_active")
+  createdAt             DateTime       @default(now()) @map("created_at")
+  updatedAt             DateTime       @updatedAt @map("updated_at")
 
-model Payroll {
-  id                Int             @id @default(autoincrement())
-  payrollPeriodId   Int             @map("payroll_period_id")
-  companyId         Int             @map("company_id")
-  criteria          PayrollCriteria
-  status            PayrollStatus   @default(DRAFT)
-  generatedByUserId Int             @map("generated_by_user_id")
-  generatedAt       DateTime        @default(now()) @map("generated_at")
-  createdAt         DateTime        @default(now()) @map("created_at")
-  updatedAt         DateTime        @updatedAt @map("updated_at")
+  employee            Employee @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  contractCompany     Company  @relation("ContractCompany", fields: [contractCompanyId], references: [id], onDelete: Restrict)
+  consolidatedCompany Company  @relation("ConsolidatedCompany", fields: [consolidatedCompanyId], references: [id], onDelete: Restrict)
+  branch              Branch   @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  area                Area     @relation(fields: [areaId], references: [id], onDelete: Restrict)
+  jobTitle            JobTitle @relation(fields: [jobTitleId], references: [id], onDelete: Restrict)
 
-  payrollPeriod   PayrollPeriod   @relation(fields: [payrollPeriodId], references: [id], onDelete: Restrict)
-  company         Company         @relation(fields: [companyId], references: [id], onDelete: Restrict)
-  generatedByUser User            @relation(fields: [generatedByUserId], references: [id], onDelete: Restrict)
-  details         PayrollDetail[]
+  terminations Termination[]
 
-  @@unique([payrollPeriodId, companyId, criteria])
-  @@index([companyId, criteria])
-  @@index([generatedByUserId])
-  @@map("payrolls")
-}
-
-model PayrollDetail {
-  id               Int      @id @default(autoincrement())
-  payrollId        Int      @map("payroll_id")
-  employeeId       Int      @map("employee_id")
-  contractId       Int      @map("contract_id")
-  workAssignmentId Int      @map("work_assignment_id")
-  baseSalary       Decimal  @map("base_salary") @db.Decimal(12, 2)
-  workedDays       Decimal  @default(0) @map("worked_days") @db.Decimal(5, 2)
-  totalEarnings    Decimal  @default(0) @map("total_earnings") @db.Decimal(12, 2)
-  totalDeductions  Decimal  @default(0) @map("total_deductions") @db.Decimal(12, 2)
-  netPay           Decimal  @default(0) @map("net_pay") @db.Decimal(12, 2)
-  createdAt        DateTime @default(now()) @map("created_at")
-  updatedAt        DateTime @updatedAt @map("updated_at")
-
-  payroll        Payroll                @relation(fields: [payrollId], references: [id], onDelete: Cascade)
-  employee       Employee               @relation(fields: [employeeId], references: [id], onDelete: Restrict)
-  contract       EmployeeContract       @relation(fields: [contractId], references: [id], onDelete: Restrict)
-  workAssignment WorkAssignment         @relation(fields: [workAssignmentId], references: [id], onDelete: Restrict)
-  concepts       PayrollDetailConcept[]
-
-  @@unique([payrollId, employeeId])
   @@index([employeeId])
-  @@index([contractId])
-  @@index([workAssignmentId])
-  @@map("payroll_details")
+  @@index([employeeId, isActive])
+  @@index([contractCompanyId])
+  @@index([consolidatedCompanyId])
+  @@index([branchId])
+  @@index([areaId])
+  @@index([jobTitleId])
+  @@index([status])
+  @@map("employee_contracts")
 }
 
-// ======================================================
-// PAYROLL CONCEPTS
-// ======================================================
-
-model PayrollConcept {
-  id          Int                @id @default(autoincrement())
-  name        String             @unique @db.VarChar(120)
-  type        PayrollConceptType
-  description String?            @db.Text
-  isActive    Boolean            @default(true) @map("is_active")
-  createdAt   DateTime           @default(now()) @map("created_at")
-  updatedAt   DateTime           @updatedAt @map("updated_at")
-
-  payrollDetails PayrollDetailConcept[]
-
-  @@map("payroll_concepts")
-}
-
-model PayrollDetailConcept {
-  id               Int      @id @default(autoincrement())
-  payrollDetailId  Int      @map("payroll_detail_id")
-  payrollConceptId Int      @map("payroll_concept_id")
-  amount           Decimal  @db.Decimal(12, 2)
-  notes            String?  @db.Text
-  createdAt        DateTime @default(now()) @map("created_at")
-  updatedAt        DateTime @updatedAt @map("updated_at")
-
-  payrollDetail  PayrollDetail  @relation(fields: [payrollDetailId], references: [id], onDelete: Cascade)
-  payrollConcept PayrollConcept @relation(fields: [payrollConceptId], references: [id], onDelete: Restrict)
-
-  @@unique([payrollDetailId, payrollConceptId])
-  @@index([payrollConceptId])
-  @@map("payroll_detail_concepts")
-}
-
-// ======================================================
-// VACATIONS
-// ======================================================
-
-model VacationBalance {
-  id            Int      @id @default(autoincrement())
-  employeeId    Int      @map("employee_id")
-  year          Int
-  assignedDays  Decimal  @default(0) @map("assigned_days") @db.Decimal(5, 2)
-  usedDays      Decimal  @default(0) @map("used_days") @db.Decimal(5, 2)
-  availableDays Decimal  @default(0) @map("available_days") @db.Decimal(5, 2)
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
+model EmergencyContact {
+  id           Int      @id @default(autoincrement())
+  employeeId   Int      @map("employee_id")
+  fullName     String   @map("full_name") @db.VarChar(160)
+  relationship String   @db.VarChar(60)
+  phone        String   @db.VarChar(30)
+  address      String?  @db.VarChar(255)
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
 
   employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
-  @@unique([employeeId, year])
-  @@map("vacation_balances")
+  @@index([employeeId])
+  @@map("emergency_contacts")
 }
 
-model VacationRequest {
-  id                   Int           @id @default(autoincrement())
-  employeeId           Int           @map("employee_id")
-  startDate            DateTime      @map("start_date") @db.Date
-  endDate              DateTime      @map("end_date") @db.Date
-  numberOfDays         Decimal       @map("number_of_days") @db.Decimal(5, 2)
-  reason               String?       @db.Text
-  status               RequestStatus @default(PENDING)
-  approvedByEmployeeId Int?          @map("approved_by_employee_id")
-  responseDate         DateTime?     @map("response_date")
-  responseNotes        String?       @map("response_notes") @db.Text
-  createdAt            DateTime      @default(now()) @map("created_at")
-  updatedAt            DateTime      @updatedAt @map("updated_at")
+model EmployeeDocument {
+  id           Int                  @id @default(autoincrement())
+  employeeId   Int                  @map("employee_id")
+  documentType EmployeeDocumentType @map("document_type")
+  name         String               @db.VarChar(180)
+  fileUrl      String               @map("file_url") @db.VarChar(500)
+  documentDate DateTime?            @map("document_date") @db.Date
+  notes        String?              @db.Text
+  uploadedAt   DateTime             @default(now()) @map("uploaded_at")
 
-  employee           Employee  @relation("EmployeeVacationRequests", fields: [employeeId], references: [id], onDelete: Restrict)
-  approvedByEmployee Employee? @relation("VacationRequestApprover", fields: [approvedByEmployeeId], references: [id], onDelete: SetNull)
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
-  @@index([employeeId, status])
-  @@index([approvedByEmployeeId])
-  @@map("vacation_requests")
-}
-
-// ======================================================
-// WORK INCIDENTS
-// ======================================================
-
-model WorkIncidentType {
-  id               Int                  @id @default(autoincrement())
-  name             String               @unique @db.VarChar(100)
-  category         WorkIncidentCategory
-  deductsSalary    Boolean              @default(false) @map("deducts_salary")
-  requiresApproval Boolean              @default(true) @map("requires_approval")
-  isActive         Boolean              @default(true) @map("is_active")
-  createdAt        DateTime             @default(now()) @map("created_at")
-  updatedAt        DateTime             @updatedAt @map("updated_at")
-
-  workIncidents WorkIncident[]
-
-  @@map("work_incident_types")
-}
-
-model WorkIncident {
-  id                   Int                @id @default(autoincrement())
-  employeeId           Int                @map("employee_id")
-  workIncidentTypeId   Int                @map("work_incident_type_id")
-  startDate            DateTime           @map("start_date")
-  endDate              DateTime?          @map("end_date")
-  numberOfHours        Decimal?           @map("number_of_hours") @db.Decimal(6, 2)
-  numberOfDays         Decimal?           @map("number_of_days") @db.Decimal(5, 2)
-  reason               String?            @db.Text
-  status               WorkIncidentStatus @default(PENDING)
-  deductionAmount      Decimal?           @map("deduction_amount") @db.Decimal(12, 2)
-  approvedByEmployeeId Int?               @map("approved_by_employee_id")
-  documentUrl          String?            @map("document_url") @db.VarChar(500)
-  createdAt            DateTime           @default(now()) @map("created_at")
-  updatedAt            DateTime           @updatedAt @map("updated_at")
-
-  employee           Employee         @relation("EmployeeWorkIncidents", fields: [employeeId], references: [id], onDelete: Restrict)
-  workIncidentType   WorkIncidentType @relation(fields: [workIncidentTypeId], references: [id], onDelete: Restrict)
-  approvedByEmployee Employee?        @relation("WorkIncidentApprover", fields: [approvedByEmployeeId], references: [id], onDelete: SetNull)
-
-  @@index([employeeId, status])
-  @@index([workIncidentTypeId])
-  @@index([approvedByEmployeeId])
-  @@map("work_incidents")
-}
-
-// ======================================================
-// MEMORANDUMS
-// ======================================================
-
-model MemorandumType {
-  id        Int      @id @default(autoincrement())
-  name      String   @unique @db.VarChar(100)
-  isActive  Boolean  @default(true) @map("is_active")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  memorandums Memorandum[]
-
-  @@map("memorandum_types")
+  @@index([employeeId])
+  @@index([documentType])
+  @@map("employee_documents")
 }
 
 model Memorandum {
-  id                 Int              @id @default(autoincrement())
-  employeeId         Int              @map("employee_id")
-  memorandumTypeId   Int              @map("memorandum_type_id")
-  issueDate          DateTime         @map("issue_date") @db.Date
-  subject            String           @db.VarChar(200)
-  content            String           @db.Text
-  issuedByEmployeeId Int?             @map("issued_by_employee_id")
-  documentUrl        String?          @map("document_url") @db.VarChar(500)
-  status             MemorandumStatus @default(ISSUED)
-  createdAt          DateTime         @default(now()) @map("created_at")
-  updatedAt          DateTime         @updatedAt @map("updated_at")
+  id             Int            @id @default(autoincrement())
+  employeeId     Int            @map("employee_id")
+  createdById    Int            @map("created_by_id")
+  type           MemorandumType
+  title          String         @db.VarChar(180)
+  category       String?        @db.VarChar(100)
+  memorandumDate DateTime       @map("memorandum_date") @db.Date
+  description    String         @db.Text
+  fileUrl        String?        @map("file_url") @db.VarChar(500)
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
 
-  employee         Employee       @relation("MemorandumRecipient", fields: [employeeId], references: [id], onDelete: Restrict)
-  memorandumType   MemorandumType @relation(fields: [memorandumTypeId], references: [id], onDelete: Restrict)
-  issuedByEmployee Employee?      @relation("MemorandumIssuer", fields: [issuedByEmployeeId], references: [id], onDelete: SetNull)
+  employee  Employee @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  createdBy User     @relation(fields: [createdById], references: [id], onDelete: Restrict)
 
   @@index([employeeId])
-  @@index([memorandumTypeId])
-  @@index([issuedByEmployeeId])
+  @@index([createdById])
+  @@index([type])
   @@map("memorandums")
 }
 
-// ======================================================
-// SALARY ADVANCES
-// ======================================================
+model AttendanceIncident {
+  id            Int                    @id @default(autoincrement())
+  employeeId    Int                    @map("employee_id")
+  type          AttendanceIncidentType
+  durationType  AttendanceDurationType @map("duration_type")
+  incidentDate  DateTime               @map("incident_date") @db.Date
+  reason        String?                @db.VarChar(180)
+  description   String?                @db.Text
+  isJustified   Boolean                @default(false) @map("is_justified")
+  attachmentUrl String?                @map("attachment_url") @db.VarChar(500)
+  createdAt     DateTime               @default(now()) @map("created_at")
+  updatedAt     DateTime               @updatedAt @map("updated_at")
 
-model SalaryAdvance {
-  id                   Int                 @id @default(autoincrement())
-  employeeId           Int                 @map("employee_id")
-  requestDate          DateTime            @map("request_date") @db.Date
-  requestedAmount      Decimal             @map("requested_amount") @db.Decimal(12, 2)
-  approvedAmount       Decimal?            @map("approved_amount") @db.Decimal(12, 2)
-  numberOfInstallments Int?                @map("number_of_installments")
-  reason               String?             @db.Text
-  status               SalaryAdvanceStatus @default(PENDING)
-  approvedByEmployeeId Int?                @map("approved_by_employee_id")
-  approvalDate         DateTime?           @map("approval_date") @db.Date
-  createdAt            DateTime            @default(now()) @map("created_at")
-  updatedAt            DateTime            @updatedAt @map("updated_at")
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Restrict)
 
-  employee           Employee                   @relation("EmployeeSalaryAdvances", fields: [employeeId], references: [id], onDelete: Restrict)
-  approvedByEmployee Employee?                  @relation("SalaryAdvanceApprover", fields: [approvedByEmployeeId], references: [id], onDelete: SetNull)
-  installments       SalaryAdvanceInstallment[]
-
-  @@index([employeeId, status])
-  @@index([approvedByEmployeeId])
-  @@map("salary_advances")
+  @@index([employeeId])
+  @@index([incidentDate])
+  @@index([type])
+  @@map("attendance_incidents")
 }
 
-model SalaryAdvanceInstallment {
-  id                Int                            @id @default(autoincrement())
-  salaryAdvanceId   Int                            @map("salary_advance_id")
-  payrollPeriodId   Int?                           @map("payroll_period_id")
-  installmentNumber Int                            @map("installment_number")
-  amount            Decimal                        @db.Decimal(12, 2)
-  status            SalaryAdvanceInstallmentStatus @default(PENDING)
-  paymentDate       DateTime?                      @map("payment_date") @db.Date
-  createdAt         DateTime                       @default(now()) @map("created_at")
-  updatedAt         DateTime                       @updatedAt @map("updated_at")
+model Vacation {
+  id         Int      @id @default(autoincrement())
+  employeeId Int      @map("employee_id")
+  startDate  DateTime @map("start_date") @db.Date
+  endDate    DateTime @map("end_date") @db.Date
+  days       Decimal  @db.Decimal(5, 2)
+  status     String   @default("REQUESTED") @db.VarChar(20)
+  notes      String?  @db.Text
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
 
-  salaryAdvance SalaryAdvance  @relation(fields: [salaryAdvanceId], references: [id], onDelete: Cascade)
-  payrollPeriod PayrollPeriod? @relation(fields: [payrollPeriodId], references: [id], onDelete: SetNull)
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Restrict)
 
-  @@unique([salaryAdvanceId, installmentNumber])
-  @@index([payrollPeriodId])
-  @@map("salary_advance_installments")
+  @@index([employeeId])
+  @@index([startDate])
+  @@index([status])
+  @@map("vacations")
 }
 
-// ======================================================
-// SALARY EVENTS
-// ======================================================
+model EmployeeMovement {
+  id           Int                    @id @default(autoincrement())
+  employeeId   Int                    @map("employee_id")
+  type         EmployeeMovementType
+  amount       Decimal                @db.Decimal(12, 2)
+  movementDate DateTime               @map("movement_date") @db.Date
+  description  String?                @db.Text
+  status       EmployeeMovementStatus @default(PENDING)
+  appliedYear  Int?                   @map("applied_year")
+  appliedMonth Int?                   @map("applied_month")
+  createdAt    DateTime               @default(now()) @map("created_at")
+  updatedAt    DateTime               @updatedAt @map("updated_at")
 
-model SalaryEventType {
-  id        Int                 @id @default(autoincrement())
-  name      String              @unique @db.VarChar(120)
-  category  SalaryEventCategory
-  isActive  Boolean             @default(true) @map("is_active")
-  createdAt DateTime            @default(now()) @map("created_at")
-  updatedAt DateTime            @updatedAt @map("updated_at")
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Restrict)
 
-  salaryEvents SalaryEvent[]
-
-  @@map("salary_event_types")
+  @@index([employeeId])
+  @@index([type])
+  @@index([status])
+  @@index([appliedYear, appliedMonth])
+  @@map("employee_movements")
 }
 
-model SalaryEvent {
-  id                Int               @id @default(autoincrement())
-  employeeId        Int               @map("employee_id")
-  salaryEventTypeId Int               @map("salary_event_type_id")
-  payrollPeriodId   Int?              @map("payroll_period_id")
-  eventDate         DateTime          @map("event_date") @db.Date
-  amount            Decimal           @db.Decimal(12, 2)
-  description       String?           @db.Text
-  status            SalaryEventStatus @default(PENDING)
-  createdAt         DateTime          @default(now()) @map("created_at")
-  updatedAt         DateTime          @updatedAt @map("updated_at")
+model EmployeePayroll {
+  id                    Int           @id @default(autoincrement())
+  employeeId            Int           @map("employee_id")
+  contractCompanyId     Int           @map("contract_company_id")
+  consolidatedCompanyId Int           @map("consolidated_company_id")
+  generatedById         Int           @map("generated_by_id")
+  year                  Int
+  month                 Int
+  baseSalary            Decimal       @map("base_salary") @db.Decimal(12, 2)
+  workedDays            Decimal       @default(30) @map("worked_days") @db.Decimal(5, 2)
+  earnedSalary          Decimal       @map("earned_salary") @db.Decimal(12, 2)
+  seniorityBonus        Decimal       @default(0) @map("seniority_bonus") @db.Decimal(12, 2)
+  otherBonuses          Decimal       @default(0) @map("other_bonuses") @db.Decimal(12, 2)
+  discounts             Decimal       @default(0) @db.Decimal(12, 2)
+  advances              Decimal       @default(0) @db.Decimal(12, 2)
+  afpDeduction          Decimal       @default(0) @map("afp_deduction") @db.Decimal(12, 2)
+  otherDeductions       Decimal       @default(0) @map("other_deductions") @db.Decimal(12, 2)
+  totalEarnings         Decimal       @map("total_earnings") @db.Decimal(12, 2)
+  totalDeductions       Decimal       @map("total_deductions") @db.Decimal(12, 2)
+  netSalary             Decimal       @map("net_salary") @db.Decimal(12, 2)
+  status                PayrollStatus @default(DRAFT)
+  generatedAt           DateTime      @default(now()) @map("generated_at")
+  updatedAt             DateTime      @updatedAt @map("updated_at")
 
-  employee        Employee        @relation(fields: [employeeId], references: [id], onDelete: Restrict)
-  salaryEventType SalaryEventType @relation(fields: [salaryEventTypeId], references: [id], onDelete: Restrict)
-  payrollPeriod   PayrollPeriod?  @relation(fields: [payrollPeriodId], references: [id], onDelete: SetNull)
+  employee            Employee @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  contractCompany     Company  @relation("PayrollContractCompany", fields: [contractCompanyId], references: [id], onDelete: Restrict)
+  consolidatedCompany Company  @relation("PayrollConsolidatedCompany", fields: [consolidatedCompanyId], references: [id], onDelete: Restrict)
+  generatedBy         User     @relation(fields: [generatedById], references: [id], onDelete: Restrict)
 
-  @@index([employeeId, status])
-  @@index([salaryEventTypeId])
-  @@index([payrollPeriodId])
-  @@map("salary_events")
+  @@unique([employeeId, year, month])
+  @@index([contractCompanyId, year, month])
+  @@index([consolidatedCompanyId, year, month])
+  @@index([status])
+  @@map("employee_payrolls")
 }
-
-// ======================================================
-// TERMINATIONS
-// ======================================================
 
 model Termination {
-  id                 Int      @id @default(autoincrement())
-  employeeId         Int      @map("employee_id")
-  contractId         Int      @map("contract_id")
-  terminationDate    DateTime @map("termination_date") @db.Date
-  terminationType    String   @map("termination_type") @db.VarChar(60)
-  reason             String   @db.Text
-  notes              String?  @db.Text
-  documentUrl        String?  @map("document_url") @db.VarChar(500)
-  registeredByUserId Int      @map("registered_by_user_id")
-  createdAt          DateTime @default(now()) @map("created_at")
-  updatedAt          DateTime @updatedAt @map("updated_at")
+  id                 Int             @id @default(autoincrement())
+  employeeId         Int             @map("employee_id")
+  contractId         Int             @map("contract_id")
+  registeredByUserId Int             @map("registered_by_user_id")
+  type               TerminationType
+  terminationDate    DateTime        @map("termination_date") @db.Date
+  reason             String?         @db.VarChar(180)
+  description        String?         @db.Text
+  settlementAmount   Decimal?        @map("settlement_amount") @db.Decimal(12, 2)
+  documentUrl        String?         @map("document_url") @db.VarChar(500)
+  createdAt          DateTime        @default(now()) @map("created_at")
 
   employee         Employee         @relation(fields: [employeeId], references: [id], onDelete: Restrict)
   contract         EmployeeContract @relation(fields: [contractId], references: [id], onDelete: Restrict)
