@@ -11,6 +11,7 @@ import areaRoute from "../routes/area.routes";
 import cityRoute from "../routes/city.routes";
 import branchRoute from "../routes/branch.routes";
 import jobTitleRoute from "../routes/jobTitle.routes";
+import employeeRoute from "../routes/employee.routes";
 
 const app = express();
 
@@ -31,5 +32,6 @@ app.use("/api/area", verifyToken, areaRoute);
 app.use("/api/city", verifyToken, cityRoute);
 app.use("/api/branch", verifyToken, branchRoute);
 app.use("/api/job-title", verifyToken, jobTitleRoute);
+app.use("/api/employee", verifyToken, employeeRoute);
 
 export default app;
