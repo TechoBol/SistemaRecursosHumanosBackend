@@ -4,7 +4,6 @@ export const getEmergencyContactsByEmployeeId = async (employeeId: number) => {
   return prisma.emergencyContact.findMany({
     where: {
       employeeId,
-      isActive: true,
     },
     orderBy: {
       id: "asc",
@@ -51,12 +50,9 @@ export const updateEmergencyContact = async (
 };
 
 export const deleteEmergencyContact = async (id: number) => {
-  return prisma.emergencyContact.update({
+  return prisma.emergencyContact.delete({
     where: {
       id,
-    },
-    data: {
-      isActive: false,
     },
   });
 };
