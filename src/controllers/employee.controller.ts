@@ -1,250 +1,259 @@
 import { Request, Response } from "express";
 import {
-  getEmployeesRepo,
-  createEmployeeRepo,
-  updateEmployeeRepo,
-  deleteEmployeeRepo,
-  getOneEmployeeToValidateToken,
-  changePasswordRepository,
+  createEmployeeRepository,
+  deleteEmployeeRepository,
+  getAllEmployeesRepository,
+  getEmployeeByIdRepository,
+  getEmployeeByDocumentRepository,
+  updateEmployeeRepository,
 } from "../repository/employee.repository";
-import bcrypt from "bcrypt";
-import jwt from "jsonwebtoken";
-import { sendEmployeeCredentials } from "../utils/sendEmployeeCredentials";
 
-//////////////////////////////
-// GET ALL
-//////////////////////////////
-export const getEmployees = async (req: Request, res: Response) => {
+export const getEmployees = async (_req: Request, res: Response) => {
   try {
-    const token = req.headers["x-access-token"] as string;
-    const user = jwt.verify(token, process.env.JWTSECRET!) as any;
-
-    const isManagement =
-      user.level === 1 || user.level === 2 || user.level === 5;
-
-    const data = await getEmployeesRepo(Number(user.locationId), isManagement);
-
-    return res.json(data);
+    const employees = await getAllEmployeesRepository();
+    return res.json(employees);
   } catch (error) {
-    console.error(error);
-    return res.status(500).json({ message: "Error al cargar los empleados." });
+    console.error("Error getting employees:", error);
+    return res.status(500).json({
+      message: "No se pudieron obtener los empleados",
+    });
   }
 };
 
-//////////////////////////////
-// CREATE
-//////////////////////////////
+export const getEmployeeById = async (req: Request, res: Response) => {
+  try {
+    const id = Number(req.params.id);
 
-const generatePassword = (
-  name: string,
-  lastName: string,
-  numeral: number,
-): string => {
-  // primeras 3 letras apellido
-  const lastNamePart =
-    lastName.trim().substring(0, 1).toUpperCase() +
-    lastName.trim().substring(1, 3).toLowerCase();
+    if (!Number.isInteger(id) || id <= 0) {
+      return res.status(400).json({
+        message: "El identificador del empleado no es válido",
+      });
+    }
 
-  // primeras 3 letras nombre
-  const namePart = name.trim().substring(0, 3).toLowerCase();
+    const employee = await getEmployeeByIdRepository(id);
 
-  // primera letra del apellido en mayúscula
-  const firstCharLastName = lastName.trim().charAt(0).toUpperCase();
+    if (!employee) {
+      return res.status(404).json({
+        message: "Empleado no encontrado",
+      });
+    }
 
-  // ASCII del apellido
-  const asciiValue = firstCharLastName.charCodeAt(0);
-
-  return `${lastNamePart}${numeral}${namePart}${asciiValue}`;
+    return res.json(employee);
+  } catch (error) {
+    console.error("Error getting employee:", error);
+    return res.status(500).json({
+      message: "No se pudo obtener el empleado",
+    });
+  }
 };
 
 export const createEmployee = async (req: Request, res: Response) => {
   try {
-    const { name, lastName, email, roleId, locationId, numeral, celular } =
-      req.body;
+    const {
+      firstName,
+      lastName,
+      ci,
+      birthDate,
+      email,
+      phone,
+      address,
+      contractCompanyId,
+      consolidatedCompanyId,
+      employeeType,
+      branchId,
+      areaId,
+      jobTitleId,
+      contractDate,
+      endDate,
+      baseSalary,
+      status,
+    } = req.body;
 
-    // VALIDACIÓN
-    if (!name || !lastName || !roleId || !email || !numeral || !celular) {
+    if (!firstName || !lastName || !ci || !contractCompanyId || !consolidatedCompanyId || !branchId || !areaId || !jobTitleId || !contractDate) {
       return res.status(400).json({
-        message: "Debes completar nombre, apellido, correo y rol",
+        message: "Faltan campos obligatorios para registrar al empleado",
       });
     }
 
-    // GENERAR PASSWORD
-    const generatedPassword = generatePassword(name, lastName, numeral);
-    console.log(generatedPassword);
-    // HASHEAR
-    const saltRounds = 10;
+    const trimmedCI = String(ci).trim();
 
-    const hashedPassword = await bcrypt.hash(generatedPassword, saltRounds);
-
-    // CREAR EMPLEADO
-    const data = await createEmployeeRepo({
-      name,
-      lastName,
-      email,
-      password: hashedPassword,
-      roleId,
-      locationId,
-      numeral,
-      celular,
-    });
-
-    // ENVIAR CORREO
-    await sendEmployeeCredentials({
-      email,
-      name,
-      lastName,
-      password: generatedPassword,
-    });
-
-    return res.json(data);
-  } catch (error: any) {
-    console.error(error);
-
-    if (error.code === "P2002") {
-      return res.status(400).json({
-        message: "Este correo ya está registrado",
+    // Validar CI único
+    const existingEmployee = await getEmployeeByDocumentRepository(trimmedCI);
+    if (existingEmployee) {
+      return res.status(409).json({
+        message: "Ya existe un empleado registrado con esa Cédula de Identidad (CI)",
       });
     }
 
+    // Mapear Tipo de Contrato
+    const dbContractType = employeeType === "Consultor" ? "CONSULTING" : "INDEFINITE";
+
+    const employeeData = {
+      firstNames: String(firstName).trim(),
+      lastNames: String(lastName).trim(),
+      documentNumber: trimmedCI,
+      birthDate: birthDate ? new Date(birthDate) : null,
+      phone: phone ? String(phone).trim() : null,
+      email: email ? String(email).trim() : null,
+      address: address ? String(address).trim() : null,
+      status: status === "Inactivo" ? "INACTIVE" : "ACTIVE" as any,
+    };
+
+    const contractData = {
+      contractCompanyId: Number(contractCompanyId),
+      consolidatedCompanyId: Number(consolidatedCompanyId),
+      branchId: Number(branchId),
+      areaId: Number(areaId),
+      jobTitleId: Number(jobTitleId),
+      contractType: dbContractType as any,
+      hireDate: new Date(contractDate),
+      endDate: endDate ? new Date(endDate) : null,
+      baseSalary: baseSalary ? Number(baseSalary) : 0,
+    };
+
+    const employee = await createEmployeeRepository(employeeData, contractData);
+
+    return res.status(201).json({
+      message: "Empleado registrado correctamente",
+      data: employee,
+    });
+  } catch (error) {
+    console.error("Error creating employee:", error);
     return res.status(500).json({
       message: "No se pudo crear el empleado",
     });
   }
 };
 
-//////////////////////////////
-// UPDATE
-//////////////////////////////
 export const updateEmployee = async (req: Request, res: Response) => {
   try {
     const id = Number(req.params.id);
-
-    if (!id) {
-      return res.status(400).json({ message: "id inválido" });
-    }
-
-    const {
-      name,
-      lastName,
-      email,
-      roleId,
-      locationId,
-      password,
-      numeral,
-      celular,
-    } = req.body;
-
-    let hashedPassword;
-    if (password) {
-      const saltRounds = 10;
-      hashedPassword = await bcrypt.hash(password, saltRounds);
-    }
-
-    const data = await updateEmployeeRepo(id, {
-      name,
-      lastName,
-      email,
-      roleId,
-      locationId,
-      numeral,
-      celular,
-      ...(hashedPassword && { password: hashedPassword }),
-    });
-    req.app.get("io").to(`employee_${id}`).emit("forceLogout");
-    return res.json(data);
-  } catch (error: any) {
-    console.error(error);
-
-    if (error.code === "P2002") {
+    if (!Number.isInteger(id) || id <= 0) {
       return res.status(400).json({
-        message: "Este correo ya está registrado",
+        message: "El identificador del empleado no es válido",
       });
     }
 
-    return res
-      .status(500)
-      .json({ message: "No se puedo actualizar la información del empleado" });
+    const currentEmployee = await getEmployeeByIdRepository(id);
+    if (!currentEmployee) {
+      return res.status(404).json({
+        message: "Empleado no encontrado",
+      });
+    }
+
+    const {
+      firstName,
+      lastName,
+      ci,
+      birthDate,
+      email,
+      phone,
+      address,
+      contractCompanyId,
+      consolidatedCompanyId,
+      employeeType,
+      branchId,
+      areaId,
+      jobTitleId,
+      contractDate,
+      endDate,
+      baseSalary,
+      status,
+    } = req.body;
+
+    const employeeUpdateData: any = {};
+    if (firstName !== undefined) employeeUpdateData.firstNames = String(firstName).trim();
+    if (lastName !== undefined) employeeUpdateData.lastNames = String(lastName).trim();
+    if (birthDate !== undefined) employeeUpdateData.birthDate = birthDate ? new Date(birthDate) : null;
+    if (email !== undefined) employeeUpdateData.email = email ? String(email).trim() : null;
+    if (phone !== undefined) employeeUpdateData.phone = phone ? String(phone).trim() : null;
+    if (address !== undefined) employeeUpdateData.address = address ? String(address).trim() : null;
+    if (status !== undefined) {
+      employeeUpdateData.status = status === "Inactivo" ? "INACTIVE" : "ACTIVE";
+    }
+
+    if (ci !== undefined) {
+      const trimmedCI = String(ci).trim();
+      const existingEmployee = await getEmployeeByDocumentRepository(trimmedCI);
+      if (existingEmployee && existingEmployee.id !== id) {
+        return res.status(409).json({
+          message: "Ya existe otro empleado registrado con esa Cédula de Identidad (CI)",
+        });
+      }
+      employeeUpdateData.documentNumber = trimmedCI;
+    }
+
+    let contractUpdateData: any = undefined;
+    if (
+      contractCompanyId !== undefined ||
+      consolidatedCompanyId !== undefined ||
+      branchId !== undefined ||
+      areaId !== undefined ||
+      jobTitleId !== undefined ||
+      employeeType !== undefined ||
+      contractDate !== undefined ||
+      endDate !== undefined ||
+      baseSalary !== undefined ||
+      status !== undefined
+    ) {
+      contractUpdateData = {};
+      if (contractCompanyId !== undefined) contractUpdateData.contractCompanyId = Number(contractCompanyId);
+      if (consolidatedCompanyId !== undefined) contractUpdateData.consolidatedCompanyId = Number(consolidatedCompanyId);
+      if (branchId !== undefined) contractUpdateData.branchId = Number(branchId);
+      if (areaId !== undefined) contractUpdateData.areaId = Number(areaId);
+      if (jobTitleId !== undefined) contractUpdateData.jobTitleId = Number(jobTitleId);
+      if (employeeType !== undefined) {
+        contractUpdateData.contractType = employeeType === "Consultor" ? "CONSULTING" : "INDEFINITE";
+      }
+      if (contractDate !== undefined) contractUpdateData.hireDate = new Date(contractDate);
+      if (endDate !== undefined) contractUpdateData.endDate = endDate ? new Date(endDate) : null;
+      if (baseSalary !== undefined) contractUpdateData.baseSalary = Number(baseSalary);
+      if (status !== undefined) {
+        contractUpdateData.status = status === "Inactivo" ? "ENDED" : "ACTIVE";
+      }
+    }
+
+    const updatedEmployee = await updateEmployeeRepository(id, employeeUpdateData, contractUpdateData);
+
+    return res.json({
+      message: "Empleado actualizado correctamente",
+      data: updatedEmployee,
+    });
+  } catch (error) {
+    console.error("Error updating employee:", error);
+    return res.status(500).json({
+      message: "No se pudo actualizar el empleado",
+    });
   }
 };
 
-//////////////////////////////
-// DELETE (SOFT DELETE)
-//////////////////////////////
 export const deleteEmployee = async (req: Request, res: Response) => {
   try {
     const id = Number(req.params.id);
 
-    if (!id) {
-      return res.status(400).json({ message: "id inválido" });
-    }
-
-    const data = await deleteEmployeeRepo(id);
-    req.app.get("io").to(`employee_${id}`).emit("forceLogout");
-    return res.json({
-      message: "Empleado eliminado correctamente",
-      data,
-    });
-  } catch (error) {
-    console.error(error);
-    return res.status(500).json({ message: "No se pudo eliminar el empleado" });
-  }
-};
-
-//////////////////////////////
-// LOGIN VALIDATION (opcional)
-//////////////////////////////
-export const validateEmployee = async (req: Request, res: Response) => {
-  try {
-    const { id, password } = req.body;
-
-    if (!id || !password) {
+    if (!Number.isInteger(id) || id <= 0) {
       return res.status(400).json({
-        message: "Ingresa tu correo y contraseña",
+        message: "El identificador del empleado no es válido",
       });
     }
 
-    const data = await getOneEmployeeToValidateToken(id, password);
+    const employee = await getEmployeeByIdRepository(id);
 
-    if (!data) {
-      return res.status(401).json({
-        message: "Usuario o contraseña incorrectos",
+    if (!employee) {
+      return res.status(404).json({
+        message: "Empleado no encontrado",
       });
     }
 
-    return res.json(data);
-  } catch (error) {
-    console.error(error);
-    return res
-      .status(500)
-      .json({ message: "Ocurrió un error al validar el empleado" });
-  }
-};
-
-//////////////////////////////
-// CHANGE PASSWORD
-//////////////////////////////
-export const changePassword = async (req: Request, res: Response) => {
-  try {
-    const id = Number(req.params.id);
-    const { newPassword } = req.body;
-
-    if (!id || !newPassword) {
-      return res.status(400).json({
-        message: "Correo y nueva contraseña son obligatorios",
-      });
-    }
-
-    const data = await changePasswordRepository(id, newPassword);
+    await deleteEmployeeRepository(id);
 
     return res.json({
-      message: "Contraseña actualizada correctamente",
-      data,
+      message: "Empleado desactivado correctamente",
     });
   } catch (error) {
-    console.error(error);
-    return res
-      .status(500)
-      .json({ message: "Ocurrió un error al cambiar la contraseña" });
+    console.error("Error deleting employee:", error);
+    return res.status(500).json({
+      message: "No se pudo desactivar el empleado",
+    });
   }
 };

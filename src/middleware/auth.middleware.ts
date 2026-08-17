@@ -1,48 +1,87 @@
-import jwt, { JwtPayload } from 'jsonwebtoken'
-import { Request, Response, NextFunction } from 'express'
-import { config } from 'dotenv'
-config()
+import { NextFunction, Request, Response } from "express";
+import jwt, { JwtPayload } from "jsonwebtoken";
+import { getOneUserToValidateToken } from "../repository/user.repository";
 
-export interface AuthUser {
-  id: number;
-  email: string;
-  role: string;
-  level: number;
-  locationId: number | null;
+export interface AuthenticatedRequest extends Request {
+  user?: {
+    id: number;
+    email: string;
+    roleId: number;
+    role: string;
+  };
 }
 
-declare global {
-  namespace Express {
-    interface Request {
-      user?: AuthUser;
-    }
-  }
-}
-
-export const verifyToken = (req: Request, res: Response, next: NextFunction) => {
+export const verifyToken = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction,
+) => {
   try {
-    const token = req.headers['x-access-token']
-    if (!token) {
-      return res.status(403).json({ message: 'No token provided' })
+    const authorizationHeader = req.headers.authorization;
+
+    if (!authorizationHeader) {
+      return res.status(401).json({
+        message: "Token de acceso requerido",
+      });
     }
 
-    const decoded = jwt.verify(token as string, process.env.JWTSECRET as string) as JwtPayload
+    const [tokenType, token] = authorizationHeader.split(" ");
 
-    if (!decoded) {
-      return res.status(401).json({ message: 'Unauthorized' })
+    if (tokenType !== "Bearer" || !token) {
+      return res.status(401).json({
+        message: "Formato de token inválido",
+      });
+    }
+
+    const jwtSecret = process.env.JWTSECRET;
+
+    if (!jwtSecret) {
+      throw new Error("JWTSECRET no está configurado");
+    }
+
+    const decoded = jwt.verify(token, jwtSecret) as JwtPayload;
+
+    const userId = Number(decoded.id);
+
+    if (!Number.isInteger(userId)) {
+      return res.status(401).json({
+        message: "Token inválido",
+      });
+    }
+
+    const user = await getOneUserToValidateToken(userId);
+
+    if (!user || !user.isActive) {
+      return res.status(401).json({
+        message: "Usuario no autorizado",
+      });
     }
 
     req.user = {
-      id: decoded.id,
-      email: decoded.email,
-      role: decoded.role,
-      level: decoded.level,
-      locationId: decoded.locationId,
+      id: user.id,
+      email: user.email,
+      roleId: user.role.id,
+      role: user.role.name,
+    };
+
+    return next();
+  } catch (error) {
+    if (error instanceof jwt.TokenExpiredError) {
+      return res.status(401).json({
+        message: "El token ha expirado",
+      });
     }
 
-    next()
-    return null
-  } catch {
-    return res.status(401).json({ message: 'Unauthorized' })
+    if (error instanceof jwt.JsonWebTokenError) {
+      return res.status(401).json({
+        message: "Token inválido",
+      });
+    }
+
+    console.error("Error verifying token:", error);
+
+    return res.status(500).json({
+      message: "Error interno del servidor",
+    });
   }
-}
+};

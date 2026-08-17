@@ -7,701 +7,452 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Location {
-  id               Int          @id @default(autoincrement())
-  name             String
-  type             LocationType
-  address          String?
-  abbreviation     String?
-  region           String?
-  saleCounter      Int          @default(0)
-  quotationCounter Int          @default(0)
-  creditCounter    Int          @default(0)
-  receiptCounter   Int          @default(0)
-  isVisible        Boolean      @default(true)
-  transferCounter  Int          @default(0)
-  employees        Employee[]
-  inventories      Inventory[]
-  sales            Sale[]
-  quotations       Quotation[]
-  creditPlans      CreditPlan[]
-
-  fromMovements StockMovement[] @relation("FromLocation")
-  toMovements   StockMovement[] @relation("ToLocation")
-
-  fromTransfers Transfer[] @relation("FromTransfer")
-  toTransfers   Transfer[] @relation("ToTransfer")
-
-  importaciones Importacion[]
-  SaleDetail    SaleDetail[]
-
-  InventoryCross InventoryCross[]
+enum EmployeeStatus {
+  ACTIVE
+  INACTIVE
+  TERMINATED
 }
 
-enum LocationType {
-  WAREHOUSE
-  BRANCH
+enum ContractType {
+  INDEFINITE
+  CONSULTING
 }
 
-model Employee {
-  id       Int     @id @default(autoincrement())
-  name     String
-  lastName String
-  email    String? @unique
-  password String?
-  numeral  Int?
-  celular  String?
-  role     Role    @relation(fields: [roleId], references: [id])
-  roleId   Int
-
-  location   Location? @relation(fields: [locationId], references: [id])
-  locationId Int?
-
-  isVisible Boolean @default(true)
-
-  sales          Sale[]
-  quotations     Quotation[]
-  creditPlans    CreditPlan[]
-  creditPayments CreditPayment[]
-
-  requestedTransfers Transfer[] @relation("RequestedBy")
-  approvedTransfers  Transfer[] @relation("ApprovedBy")
-  editedTransfers    Transfer[] @relation("EditedBy")
-
-  notificationReads NotificationRead[]
-
-  InventoryCross InventoryCross[]
-}
-
-model Role {
-  id          Int     @id @default(autoincrement())
-  name        String  @unique
-  description String?
-  level       Int?
-  isVisible   Boolean @default(true)
-
-  employees Employee[]
-}
-
-model Line {
-  id          Int     @id @default(autoincrement())
-  name        String  @unique
-  description String?
-  brands      Json?
-  isVisible   Boolean @default(true)
-
-  products Product[]
-}
-
-model Unit {
-  id            Int     @id @default(autoincrement())
-  name          String  @unique
-  code          String  @unique
-  allowDecimals Boolean @default(false)
-  isVisible     Boolean @default(true)
-
-  baseProducts Product[]     @relation("BaseUnit")
-  productUnits ProductUnit[]
-}
-
-model Product {
-  id          Int     @id @default(autoincrement())
-  name        String
-  description String?
-  code        String  @unique
-  isVisible   Boolean @default(true)
-
-  purchasePrice      Float @default(0)
-  salePrice          Float @default(0)
-  porcentajeGanancia Float @default(50)
-  baseUnit           Unit  @relation("BaseUnit", fields: [baseUnitId], references: [id])
-  baseUnitId         Int
-
-  line   Line? @relation(fields: [lineId], references: [id])
-  lineId Int?
-
-  brandName        String?
-  quantityDiscount Float   @default(0)
-  bossDiscount     Float   @default(0)
-
-  productUnits      ProductUnit[]
-  inventories       Inventory[]
-  movements         StockMovement[]
-  saleDetails       SaleDetail[]
-  quotationDetails  QuotationDetail[]
-  creditPlanDetails CreditPlanDetail[]
-  transferItems     TransferItem[]
-
-  crossesFrom InventoryCrossDetail[] @relation("CrossOriginProduct")
-  crossesTo   InventoryCrossDetail[] @relation("CrossDestinationProduct")
-}
-
-model ProductUnit {
-  id Int @id @default(autoincrement())
-
-  product   Product @relation(fields: [productId], references: [id])
-  productId Int
-
-  unit   Unit @relation(fields: [unitId], references: [id])
-  unitId Int
-
-  equivalence Float
-
-  purchasePrice Float @default(0)
-  salePrice     Float
-
-  isDefault Boolean @default(false)
-
-  saleDetails       SaleDetail[]
-  quotationDetails  QuotationDetail[]
-  creditPlanDetails CreditPlanDetail[]
-  stockMovements    StockMovement[]
-  transferItems     TransferItem[]
-
-  @@unique([productId, unitId])
-}
-
-model Inventory {
-  id Int @id @default(autoincrement())
-
-  product   Product @relation(fields: [productId], references: [id])
-  productId Int
-
-  location   Location @relation(fields: [locationId], references: [id])
-  locationId Int
-
-  quantity    Float @default(0)
-  averageCost Float @default(0)
-
-  @@unique([productId, locationId])
-}
-
-model StockMovement {
-  id Int @id @default(autoincrement())
-
-  product   Product @relation(fields: [productId], references: [id])
-  productId Int
-
-  productUnit   ProductUnit? @relation(fields: [productUnitId], references: [id])
-  productUnitId Int?
-
-  fromLocation   Location? @relation("FromLocation", fields: [fromLocationId], references: [id])
-  fromLocationId Int?
-
-  toLocation   Location? @relation("ToLocation", fields: [toLocationId], references: [id])
-  toLocationId Int?
-
-  quantity             Float
-  presentationQuantity Float?
-
-  unitCost Float @default(0)
-
-  type MovementType
-
-  reference String?
-
-  transfer   Transfer? @relation(fields: [transferId], references: [id])
-  transferId Int?
-
-  createdAt DateTime @default(now())
-}
-
-enum MovementType {
-  IN
-  OUT
-  TRANSFER
-  ADJUSTMENT
-}
-
-model Transfer {
-  id Int @id @default(autoincrement())
-
-  transferCode String? @unique
-
-  fromLocation   Location? @relation("FromTransfer", fields: [fromLocationId], references: [id])
-  fromLocationId Int?
-
-  toLocation   Location? @relation("ToTransfer", fields: [toLocationId], references: [id])
-  toLocationId Int?
-
-  status TransferStatus @default(PENDING)
-
-  createdAt  DateTime  @default(now())
-  editedAt   DateTime?
-  editedById Int?
-  editedBy   Employee? @relation("EditedBy", fields: [editedById], references: [id])
-  editReason String?
-
-  requestedById Int
-  requestedBy   Employee @relation("RequestedBy", fields: [requestedById], references: [id])
-
-  approvedBy   Employee? @relation("ApprovedBy", fields: [approvedById], references: [id])
-  approvedById Int?
-
-  approvedAt DateTime?
-  executedAt DateTime?
-
-  rejectionReason String?
-  glosa           String?
-
-  items     TransferItem[]
-  movements StockMovement[]
-
-  notifications Notification[]
-}
-
-model TransferItem {
-  id Int @id @default(autoincrement())
-
-  transfer   Transfer @relation(fields: [transferId], references: [id])
-  transferId Int
-
-  product   Product @relation(fields: [productId], references: [id])
-  productId Int
-
-  productUnit   ProductUnit? @relation(fields: [productUnitId], references: [id])
-  productUnitId Int?
-
-  presentationQuantity Float?
-  quantity             Float
-}
-
-enum TransferStatus {
-  PENDING
-  APPROVED
-  REJECTED
-}
-
-model Sale {
-  id   Int      @id @default(autoincrement())
-  date DateTime @default(now())
-
-  location   Location @relation(fields: [locationId], references: [id])
-  locationId Int
-
-  employee   Employee @relation(fields: [employeeId], references: [id])
-  employeeId Int
-
-  customer   Customer? @relation(fields: [customerId], references: [id])
-  customerId Int?
-
-  subtotal Float @default(0)
-  discount Float @default(0)
-  total    Float
-
-  code   String?
-  pdfUrl String?
-
-  details SaleDetail[]
-
-  typeSale          String?
-  transactionNumber String?
-
-  bankName        String?
-  generateInvoice Boolean @default(false)
-
-  paymentMethodChanged Boolean @default(false)
-  dateChanged          Boolean @default(false)
-
-  status        SaleStatus @default(COMPLETED)
-  cancelReason  String?
-  cancelledAt   DateTime?
-  cancelledById Int?
-
-  quotation   Quotation? @relation(fields: [quotationId], references: [id])
-  quotationId Int?
-
-  customerAddress   CustomerAddress? @relation(fields: [customerAddressId], references: [id])
-  customerAddressId Int?
-
-  customerAddressSnapshot   String?
-  customerLatitudeSnapshot  Float?
-  customerLongitudeSnapshot Float?
-
-  customerNit   CustomerNit? @relation(fields: [customerNitId], references: [id])
-  customerNitId Int?
-
-  customerNitSnapshot        String?
-  customerNitCompanySnapshot String?
-  glosa                      String?
-  notifications              Notification[]
-
-  creditPlan CreditPlan?
-}
-
-enum SaleStatus {
-  COMPLETED
-  PENDING
+enum ContractStatus {
+  ACTIVE
+  ENDED
   CANCELLED
 }
 
-enum DeliveryStatus {
-  PENDING
-  DELIVERED
-}
-
-model SaleDetail {
-  id Int @id @default(autoincrement())
-
-  sale   Sale @relation(fields: [saleId], references: [id])
-  saleId Int
-
-  product   Product @relation(fields: [productId], references: [id])
-  productId Int
-
-  productUnit   ProductUnit @relation(fields: [productUnitId], references: [id])
-  productUnitId Int
-
-  unitName     String
-  equivalence  Float
-  quantity     Float
-  unitPrice    Float
-  itemDiscount Float  @default(0)
-  subtotal     Float
-
-  outputLocationId Int?
-  outputLocation   Location? @relation(fields: [outputLocationId], references: [id])
-
-  deliveryStatus DeliveryStatus @default(PENDING)
-
-  deliveredAt DateTime?
-  deliveredBy Int?
-}
-
-model Quotation {
-  id   Int      @id @default(autoincrement())
-  code String   @unique
-  date DateTime @default(now())
-
-  location   Location @relation(fields: [locationId], references: [id])
-  locationId Int
-
-  employee   Employee @relation(fields: [employeeId], references: [id])
-  employeeId Int
-
-  customer   Customer? @relation(fields: [customerId], references: [id])
-  customerId Int?
-
-  subtotal Float @default(0)
-  discount Float @default(0)
-  total    Float
-
-  status    QuotationStatus @default(PENDING)
-  notes     String?
-  expiresAt DateTime?
-
-  details QuotationDetail[]
-  sales   Sale[]
-
-  pdfUrl    String?
-  createdAt DateTime @default(now())
-
-  customerNitSnapshot        String?
-  customerNitCompanySnapshot String?
-
-  customerAddressSnapshot   String?
-  customerLatitudeSnapshot  Float?
-  customerLongitudeSnapshot Float?
-
-  notifications Notification[]
-}
-
-enum QuotationStatus {
-  PENDING
-  APPROVED
-  REJECTED
-  EXPIRED
-}
-
-model QuotationDetail {
-  id Int @id @default(autoincrement())
-
-  quotation   Quotation @relation(fields: [quotationId], references: [id])
-  quotationId Int
-
-  product   Product @relation(fields: [productId], references: [id])
-  productId Int
-
-  productUnit   ProductUnit @relation(fields: [productUnitId], references: [id])
-  productUnitId Int
-
-  unitName     String
-  equivalence  Float
-  quantity     Float
-  unitPrice    Float
-  itemDiscount Float  @default(0)
-  subtotal     Float
-}
-
-model Customer {
-  id Int @id @default(autoincrement())
-
-  name         String
-  nits         CustomerNit[]
-  businessName String?
-  code         String?       @unique
-  phone        String?
-
-  whatsapp              String?
-  occupation            String?
-  originChannel         String?
-  favoritePaymentMethod String?
-  reserveAmount         Float    @default(0)
-  purchaseFrequencyDays Int?
-  createdAt             DateTime @default(now())
-
-  addresses  CustomerAddress[]
-  isVisible  Boolean           @default(true)
-  sales      Sale[]
-  quotations Quotation[]
-  activities Activity[]
-  notes      Note[]
-
-  creditPlans CreditPlan[]
-
-  isGeneric Boolean @default(false)
-}
-
-model CustomerAddress {
-  id Int @id @default(autoincrement())
-
-  customer   Customer @relation(fields: [customerId], references: [id])
-  customerId Int
-
-  label     String?
-  address   String
-  latitude  Float?
-  longitude Float?
-  reference String?
-  isPrimary Boolean  @default(false)
-  isVisible Boolean  @default(true)
-  createdAt DateTime @default(now())
-
-  sales Sale[]
-}
-
-model Activity {
-  id          Int      @id @default(autoincrement())
-  customerId  Int
-  customer    Customer @relation(fields: [customerId], references: [id])
-  type        String
-  description String
-  createdAt   DateTime @default(now())
-}
-
-model Note {
-  id         Int      @id @default(autoincrement())
-  customerId Int
-  customer   Customer @relation(fields: [customerId], references: [id])
-  content    String
-  createdAt  DateTime @default(now())
-}
-
-model Importacion {
-  id                   Int               @id @default(autoincrement())
-  supplierName         String?
-  referenceNumber      String?
-  importationDate      DateTime?
-  officialExchangeRate Decimal           @default(6.960000) @db.Decimal(12, 6)
-  bankExchangeRate     Decimal?          @db.Decimal(12, 6)
-  ivaPercent           Decimal           @default(14.9400) @db.Decimal(8, 4)
-  productCount         Int               @default(0)
-  status               ImportacionStatus @default(DRAFT)
-  snapshot             Json?
-  createdAt            DateTime          @default(now())
-  updatedAt            DateTime          @updatedAt
-  notifications        Notification[]
-  Location             Location?         @relation(fields: [locationId], references: [id])
-  locationId           Int?
-}
-
-enum ImportacionStatus {
+enum PayrollStatus {
   DRAFT
-  VERIFIED
-}
-
-model CustomerNit {
-  id          Int      @id @default(autoincrement())
-  number      String
-  companyName String?
-  isPrimary   Boolean  @default(false)
-  createdAt   DateTime @default(now())
-
-  customer   Customer @relation(fields: [customerId], references: [id])
-  customerId Int
-
-  sales Sale[]
-
-  @@unique([customerId, number])
-}
-
-model Notification {
-  id        Int              @id @default(autoincrement())
-  type      NotificationType
-  title     String
-  body      String
-  createdAt DateTime         @default(now())
-
-  saleId        Int?
-  transferId    Int?
-  quotationId   Int?
-  importacionId Int?
-
-  sale        Sale?        @relation(fields: [saleId], references: [id])
-  transfer    Transfer?    @relation(fields: [transferId], references: [id])
-  quotation   Quotation?   @relation(fields: [quotationId], references: [id])
-  importacion Importacion? @relation(fields: [importacionId], references: [id])
-
-  reads NotificationRead[]
-}
-
-model NotificationRead {
-  id             Int          @id @default(autoincrement())
-  notification   Notification @relation(fields: [notificationId], references: [id])
-  notificationId Int
-  employee       Employee     @relation(fields: [employeeId], references: [id])
-  employeeId     Int
-  isRead         Boolean      @default(false)
-  readAt         DateTime?
-
-  @@unique([notificationId, employeeId])
-}
-
-enum NotificationType {
-  SALE
-  TRANSFER
-  QUOTATION
-  IMPORTACION
-}
-
-model CreditPlan {
-  id Int @id @default(autoincrement())
-
-  code String @unique
-
-  sale   Sale? @relation(fields: [saleId], references: [id])
-  saleId Int?  @unique
-
-  customer   Customer @relation(fields: [customerId], references: [id])
-  customerId Int
-
-  location   Location @relation(fields: [locationId], references: [id])
-  locationId Int
-
-  employee   Employee @relation(fields: [employeeId], references: [id])
-  employeeId Int
-
-  subtotal Float @default(0)
-  discount Float @default(0)
-
-  generateInvoice Boolean @default(false)
-
-  customerNitSnapshot        String?
-  customerNitCompanySnapshot String?
-  customerAddressSnapshot    String?
-  customerLatitudeSnapshot   Float?
-  customerLongitudeSnapshot  Float?
-
-  termDays           Int
-  dueDate            DateTime
-  internalValidUntil DateTime
-
-  totalAmount Float
-  paidAmount  Float @default(0)
-
-  status      CreditPlanStatus @default(ACTIVE)
-  closedAt    DateTime?
-  convertedAt DateTime?
-  notes       String?
-
-  createdAt DateTime @default(now())
-
-  details  CreditPlanDetail[]
-  payments CreditPayment[]
-
-  @@index([status, dueDate])
-}
-
-model CreditPlanDetail {
-  id Int @id @default(autoincrement())
-
-  creditPlan   CreditPlan @relation(fields: [creditPlanId], references: [id])
-  creditPlanId Int
-
-  product   Product @relation(fields: [productId], references: [id])
-  productId Int
-
-  productUnit   ProductUnit @relation(fields: [productUnitId], references: [id])
-  productUnitId Int
-
-  unitName     String
-  equivalence  Float
-  quantity     Float
-  unitPrice    Float
-  itemDiscount Float  @default(0)
-  subtotal     Float
-}
-
-enum CreditPlanStatus {
-  ACTIVE
-  OVERDUE
+  GENERATED
+  APPROVED
   PAID
   CANCELLED
 }
 
-model CreditPayment {
-  id Int @id @default(autoincrement())
-
-  creditPlan   CreditPlan @relation(fields: [creditPlanId], references: [id])
-  creditPlanId Int
-
-  amount        Float
-  paymentMethod String?
-  reference     String?
-  receiptUrl    String?
-  notes         String?
-  receiptNumber Int?
-
-  employee   Employee @relation(fields: [employeeId], references: [id])
-  employeeId Int
-
-  paidAt DateTime @default(now())
+enum EmployeeDocumentType {
+  RESUME
+  IDENTITY_DOCUMENT
+  CONTRACT
+  CERTIFICATE
+  OTHER
 }
 
-model InventoryCross {
+enum MemorandumType {
+  POSITIVE
+  NEGATIVE
+}
+
+enum AttendanceIncidentType {
+  PERMISSION
+  ABSENCE
+}
+
+enum AttendanceDurationType {
+  HOURS
+  HALF_DAY
+  FULL_DAY
+}
+
+enum EmployeeMovementType {
+  BONUS
+  DISCOUNT
+  ADVANCE
+}
+
+enum EmployeeMovementStatus {
+  PENDING
+  APPLIED
+  CANCELLED
+}
+
+enum TerminationType {
+  RESIGNATION
+  DISMISSAL
+  CONTRACT_END
+  MUTUAL_AGREEMENT
+  OTHER
+}
+
+model Company {
   id        Int      @id @default(autoincrement())
-  code      String?
-  createdAt DateTime @default(now())
+  name      String   @unique @db.VarChar(120)
+  legalName String?  @map("legal_name") @db.VarChar(180)
+  taxId     String?  @unique @map("tax_id") @db.VarChar(30)
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-  location   Location @relation(fields: [locationId], references: [id])
-  locationId Int
+  branches                      CompanyBranch[]
+  contractualEmployeeContracts  EmployeeContract[] @relation("ContractCompany")
+  consolidatedEmployeeContracts EmployeeContract[] @relation("ConsolidatedCompany")
+  contractualEmployeePayrolls   EmployeePayroll[]  @relation("PayrollContractCompany")
+  consolidatedEmployeePayrolls  EmployeePayroll[]  @relation("PayrollConsolidatedCompany")
 
-  employee   Employee @relation(fields: [employeeId], references: [id])
-  employeeId Int
-
-  observation String?
-
-  details InventoryCrossDetail[]
-
-  @@index([createdAt])
-  @@index([locationId])
-  @@index([employeeId])
+  @@map("companies")
 }
 
-model InventoryCrossDetail {
-  id Int @id @default(autoincrement())
+model City {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique @db.VarChar(120)
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-  inventoryCross   InventoryCross @relation(fields: [inventoryCrossId], references: [id])
-  inventoryCrossId Int
+  branches Branch[]
 
-  originProduct   Product @relation("CrossOriginProduct", fields: [originProductId], references: [id])
-  originProductId Int
+  @@map("cities")
+}
 
-  destinationProduct   Product @relation("CrossDestinationProduct", fields: [destinationProductId], references: [id])
-  destinationProductId Int
+model Branch {
+  id          Int      @id @default(autoincrement())
+  cityId      Int      @map("city_id")
+  name        String   @db.VarChar(120)
+  description String?  @db.Text
+  address     String?  @db.VarChar(255)
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
-  quantity Int
+  city      City               @relation(fields: [cityId], references: [id], onDelete: Restrict)
+  companies CompanyBranch[]
+  contracts EmployeeContract[]
 
-  originAverageCost      Float @default(0)
-  destinationAverageCost Float @default(0)
+  @@map("branches")
+}
+
+model CompanyBranch {
+  id        Int      @id @default(autoincrement())
+  companyId Int      @map("company_id")
+  branchId  Int      @map("branch_id")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  branch  Branch  @relation(fields: [branchId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, branchId])
+  @@index([branchId])
+  @@map("company_branches")
+}
+
+model Area {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique @db.VarChar(120)
+  description String?  @db.Text
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  jobTitles AreaJobTitle[]
+  contracts EmployeeContract[]
+
+  @@map("areas")
+}
+
+model JobTitle {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique @db.VarChar(150)
+  description String?  @db.Text
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  areas     AreaJobTitle[]
+  contracts EmployeeContract[]
+
+  @@map("job_titles")
+}
+
+model AreaJobTitle {
+  id         Int      @id @default(autoincrement())
+  areaId     Int      @map("area_id")
+  jobTitleId Int      @map("job_title_id")
+  isActive   Boolean  @default(true) @map("is_active")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  area     Area     @relation(fields: [areaId], references: [id], onDelete: Restrict)
+  jobTitle JobTitle @relation(fields: [jobTitleId], references: [id], onDelete: Restrict)
+
+  @@unique([areaId, jobTitleId])
+  @@index([areaId])
+  @@index([jobTitleId])
+  @@map("area_job_titles")
+}
+
+model User {
+  id           Int       @id @default(autoincrement())
+  roleId       Int       @map("role_id")
+  firstName    String    @default("") @map("first_name") @db.VarChar(100)
+  lastName     String    @default("") @map("last_name") @db.VarChar(100)
+  email        String    @unique @db.VarChar(150)
+  password     String    @db.VarChar(255)
+  isActive     Boolean   @default(true) @map("is_active")
+  lastAccessAt DateTime? @map("last_access_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  role                   Role              @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  generatedPayrolls      EmployeePayroll[]
+  createdMemorandums     Memorandum[]
+  registeredTerminations Termination[]
+
+  @@index([roleId])
+  @@map("users")
+}
+
+model Role {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique @db.VarChar(80)
+  description String?  @db.Text
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  users User[]
+
+  @@map("roles")
+}
+
+model Employee {
+  id             Int            @id @default(autoincrement())
+  firstNames     String         @map("first_names") @db.VarChar(120)
+  lastNames      String         @map("last_names") @db.VarChar(160)
+  documentNumber String         @unique @map("document_number") @db.VarChar(30)
+  birthDate      DateTime?      @map("birth_date") @db.Date
+  phone          String?        @db.VarChar(30)
+  email          String?        @unique @db.VarChar(150)
+  address        String?        @db.VarChar(255)
+  status         EmployeeStatus @default(ACTIVE)
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+
+  contracts         EmployeeContract[]
+  emergencyContacts EmergencyContact[]
+  documents         EmployeeDocument[]
+  memorandums       Memorandum[]
+  incidents         AttendanceIncident[]
+  vacations         Vacation[]
+  movements         EmployeeMovement[]
+  payrolls          EmployeePayroll[]
+  terminations      Termination[]
+
+  @@index([status])
+  @@map("employees")
+}
+
+model EmployeeContract {
+  id                    Int            @id @default(autoincrement())
+  employeeId            Int            @map("employee_id")
+  contractCompanyId     Int            @map("contract_company_id")
+  consolidatedCompanyId Int            @map("consolidated_company_id")
+  branchId              Int            @map("branch_id")
+  areaId                Int            @map("area_id")
+  jobTitleId            Int            @map("job_title_id")
+  contractType          ContractType   @map("contract_type")
+  hireDate              DateTime       @map("hire_date") @db.Date
+  endDate               DateTime?      @map("end_date") @db.Date
+  baseSalary            Decimal        @map("base_salary") @db.Decimal(12, 2)
+  status                ContractStatus @default(ACTIVE)
+  isActive              Boolean        @default(true) @map("is_active")
+  createdAt             DateTime       @default(now()) @map("created_at")
+  updatedAt             DateTime       @updatedAt @map("updated_at")
+
+  employee            Employee @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  contractCompany     Company  @relation("ContractCompany", fields: [contractCompanyId], references: [id], onDelete: Restrict)
+  consolidatedCompany Company  @relation("ConsolidatedCompany", fields: [consolidatedCompanyId], references: [id], onDelete: Restrict)
+  branch              Branch   @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  area                Area     @relation(fields: [areaId], references: [id], onDelete: Restrict)
+  jobTitle            JobTitle @relation(fields: [jobTitleId], references: [id], onDelete: Restrict)
+
+  terminations Termination[]
+
+  @@index([employeeId])
+  @@index([employeeId, isActive])
+  @@index([contractCompanyId])
+  @@index([consolidatedCompanyId])
+  @@index([branchId])
+  @@index([areaId])
+  @@index([jobTitleId])
+  @@index([status])
+  @@map("employee_contracts")
+}
+
+model EmergencyContact {
+  id           Int      @id @default(autoincrement())
+  employeeId   Int      @map("employee_id")
+  fullName     String   @map("full_name") @db.VarChar(160)
+  relationship String   @db.VarChar(60)
+  phone        String   @db.VarChar(30)
+  address      String?  @db.VarChar(255)
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId])
+  @@map("emergency_contacts")
+}
+
+model EmployeeDocument {
+  id           Int                  @id @default(autoincrement())
+  employeeId   Int                  @map("employee_id")
+  documentType EmployeeDocumentType @map("document_type")
+  name         String               @db.VarChar(180)
+  fileUrl      String               @map("file_url") @db.VarChar(500)
+  documentDate DateTime?            @map("document_date") @db.Date
+  notes        String?              @db.Text
+  uploadedAt   DateTime             @default(now()) @map("uploaded_at")
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId])
+  @@index([documentType])
+  @@map("employee_documents")
+}
+
+model Memorandum {
+  id             Int            @id @default(autoincrement())
+  employeeId     Int            @map("employee_id")
+  createdById    Int            @map("created_by_id")
+  type           MemorandumType
+  title          String         @db.VarChar(180)
+  category       String?        @db.VarChar(100)
+  memorandumDate DateTime       @map("memorandum_date") @db.Date
+  description    String         @db.Text
+  fileUrl        String?        @map("file_url") @db.VarChar(500)
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+
+  employee  Employee @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  createdBy User     @relation(fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([employeeId])
+  @@index([createdById])
+  @@index([type])
+  @@map("memorandums")
+}
+
+model AttendanceIncident {
+  id            Int                    @id @default(autoincrement())
+  employeeId    Int                    @map("employee_id")
+  type          AttendanceIncidentType
+  durationType  AttendanceDurationType @map("duration_type")
+  incidentDate  DateTime               @map("incident_date") @db.Date
+  reason        String?                @db.VarChar(180)
+  description   String?                @db.Text
+  isJustified   Boolean                @default(false) @map("is_justified")
+  attachmentUrl String?                @map("attachment_url") @db.VarChar(500)
+  createdAt     DateTime               @default(now()) @map("created_at")
+  updatedAt     DateTime               @updatedAt @map("updated_at")
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+
+  @@index([employeeId])
+  @@index([incidentDate])
+  @@index([type])
+  @@map("attendance_incidents")
+}
+
+model Vacation {
+  id         Int      @id @default(autoincrement())
+  employeeId Int      @map("employee_id")
+  startDate  DateTime @map("start_date") @db.Date
+  endDate    DateTime @map("end_date") @db.Date
+  days       Decimal  @db.Decimal(5, 2)
+  status     String   @default("REQUESTED") @db.VarChar(20)
+  notes      String?  @db.Text
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+
+  @@index([employeeId])
+  @@index([startDate])
+  @@index([status])
+  @@map("vacations")
+}
+
+model EmployeeMovement {
+  id           Int                    @id @default(autoincrement())
+  employeeId   Int                    @map("employee_id")
+  type         EmployeeMovementType
+  amount       Decimal                @db.Decimal(12, 2)
+  movementDate DateTime               @map("movement_date") @db.Date
+  description  String?                @db.Text
+  status       EmployeeMovementStatus @default(PENDING)
+  appliedYear  Int?                   @map("applied_year")
+  appliedMonth Int?                   @map("applied_month")
+  createdAt    DateTime               @default(now()) @map("created_at")
+  updatedAt    DateTime               @updatedAt @map("updated_at")
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+
+  @@index([employeeId])
+  @@index([type])
+  @@index([status])
+  @@index([appliedYear, appliedMonth])
+  @@map("employee_movements")
+}
+
+model EmployeePayroll {
+  id                    Int           @id @default(autoincrement())
+  employeeId            Int           @map("employee_id")
+  contractCompanyId     Int           @map("contract_company_id")
+  consolidatedCompanyId Int           @map("consolidated_company_id")
+  generatedById         Int           @map("generated_by_id")
+  year                  Int
+  month                 Int
+  baseSalary            Decimal       @map("base_salary") @db.Decimal(12, 2)
+  workedDays            Decimal       @default(30) @map("worked_days") @db.Decimal(5, 2)
+  earnedSalary          Decimal       @map("earned_salary") @db.Decimal(12, 2)
+  seniorityBonus        Decimal       @default(0) @map("seniority_bonus") @db.Decimal(12, 2)
+  otherBonuses          Decimal       @default(0) @map("other_bonuses") @db.Decimal(12, 2)
+  discounts             Decimal       @default(0) @db.Decimal(12, 2)
+  advances              Decimal       @default(0) @db.Decimal(12, 2)
+  afpDeduction          Decimal       @default(0) @map("afp_deduction") @db.Decimal(12, 2)
+  otherDeductions       Decimal       @default(0) @map("other_deductions") @db.Decimal(12, 2)
+  totalEarnings         Decimal       @map("total_earnings") @db.Decimal(12, 2)
+  totalDeductions       Decimal       @map("total_deductions") @db.Decimal(12, 2)
+  netSalary             Decimal       @map("net_salary") @db.Decimal(12, 2)
+  status                PayrollStatus @default(DRAFT)
+  generatedAt           DateTime      @default(now()) @map("generated_at")
+  updatedAt             DateTime      @updatedAt @map("updated_at")
+
+  employee            Employee @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  contractCompany     Company  @relation("PayrollContractCompany", fields: [contractCompanyId], references: [id], onDelete: Restrict)
+  consolidatedCompany Company  @relation("PayrollConsolidatedCompany", fields: [consolidatedCompanyId], references: [id], onDelete: Restrict)
+  generatedBy         User     @relation(fields: [generatedById], references: [id], onDelete: Restrict)
+
+  @@unique([employeeId, year, month])
+  @@index([contractCompanyId, year, month])
+  @@index([consolidatedCompanyId, year, month])
+  @@index([status])
+  @@map("employee_payrolls")
+}
+
+model Termination {
+  id                 Int             @id @default(autoincrement())
+  employeeId         Int             @map("employee_id")
+  contractId         Int             @map("contract_id")
+  registeredByUserId Int             @map("registered_by_user_id")
+  type               TerminationType
+  terminationDate    DateTime        @map("termination_date") @db.Date
+  reason             String?         @db.VarChar(180)
+  description        String?         @db.Text
+  settlementAmount   Decimal?        @map("settlement_amount") @db.Decimal(12, 2)
+  documentUrl        String?         @map("document_url") @db.VarChar(500)
+  createdAt          DateTime        @default(now()) @map("created_at")
+
+  employee         Employee         @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  contract         EmployeeContract @relation(fields: [contractId], references: [id], onDelete: Restrict)
+  registeredByUser User             @relation(fields: [registeredByUserId], references: [id], onDelete: Restrict)
+
+  @@index([employeeId])
+  @@index([contractId])
+  @@index([registeredByUserId])
+  @@map("terminations")
 }

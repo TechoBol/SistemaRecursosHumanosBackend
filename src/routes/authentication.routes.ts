@@ -1,11 +1,9 @@
-import { Router } from 'express'
-import { signIn, validateToken } from '../controllers/authentication.controller'
-//import { changePassword } from '../controllers/employee.controller'
+import { Router } from "express";
+import { signIn, validateToken } from "../controllers/authentication.controller";
 
-const route = Router()
+const route = Router();
 
-route.post('/signIn', signIn)
-route.post('/validateToken', validateToken)
-//route.put('/change-password/:token', changePassword)
+route.post("/signIn", signIn);
+route.post("/validateToken", validateToken);
 
-export default route
+export default route;

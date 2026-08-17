@@ -1,10 +1,9 @@
-import { Response, Request } from "express";
+import { Request, Response } from "express";
 import { config } from "dotenv";
 import prisma from "../config/db";
 import jwt, { JwtPayload } from "jsonwebtoken";
 import bcrypt from "bcrypt";
-
-import { getOneEmployeeToValidateToken } from "../repository/employee.repository";
+import { getOneUserToValidateToken } from "../repository/user.repository";
 config();
 
 export const signIn = async (req: Request, res: Response) => {
@@ -13,109 +12,151 @@ export const signIn = async (req: Request, res: Response) => {
 
     if (!email || !password) {
       return res.status(400).json({
-        message: "email and password required",
+        message: "El correo y la contraseña son obligatorios",
       });
     }
 
-    const employee = await prisma.employee.findFirst({
+    const normalizedEmail = String(email).trim().toLowerCase();
+
+    const user = await prisma.user.findUnique({
       where: {
-        email,
-        isVisible: true,
+        email: normalizedEmail,
       },
       select: {
         id: true,
-        name: true,
+        firstName: true,
         lastName: true,
         email: true,
         password: true,
+        isActive: true,
         role: {
-          select: {
-            name: true,
-            level: true,
-          },
-        },
-        location: {
           select: {
             id: true,
             name: true,
-            type: true,
-            abbreviation: true,
-            saleCounter: true,
           },
         },
       },
     });
 
-    if (!employee) {
-      return res.status(400).json({
-        message: "user not found",
+    if (!user || !user.isActive) {
+      return res.status(401).json({
+        message: "Correo o contraseña incorrectos",
       });
     }
 
     const passwordValid = await bcrypt.compare(
-      password,
-      employee.password as string,
+      String(password),
+      user.password,
     );
 
     if (!passwordValid) {
-      return res.status(400).json({
-        message: "incorrect password",
+      return res.status(401).json({
+        message: "Correo o contraseña incorrectos",
       });
     }
 
-    // 🔥 PAYLOAD
+    const jwtSecret = process.env.JWTSECRET;
+
+    if (!jwtSecret) {
+      throw new Error("JWTSECRET no está configurado");
+    }
+
     const payload = {
-      id: employee.id,
-      email: employee.email,
-      role: employee.role?.name,
-      level: employee.role?.level,
-      locationId: employee.location ? employee.location.id : null,
+      id: user.id,
+      email: user.email,
+      roleId: user.role.id,
+      role: user.role.name,
     };
 
-    // 🔥 TOKEN
-    const token =
-      employee.role?.level === 1
-        ? jwt.sign(payload, process.env.JWTSECRET as string)
-        : jwt.sign(payload, process.env.JWTSECRET as string, {
-            expiresIn: "1d",
-          });
+    const token = jwt.sign(payload, jwtSecret, {
+      expiresIn: "8h",
+    });
 
-    return res.json({
-      id: employee.id,
-      name: employee.name,
-      lastName: employee.lastName,
-      email: employee.email,
-      role: employee.role?.name,
-      level: employee.role?.level,
-      location: employee.location,
+    await prisma.user.update({
+      where: {
+        id: user.id,
+      },
+      data: {
+        lastAccessAt: new Date(),
+      },
+    });
+
+    return res.status(200).json({
+      id: user.id,
+      name: `${user.firstName} ${user.lastName}`.trim(),
+      email: user.email,
+      role: {
+        id: user.role.id,
+        name: user.role.name,
+      },
       token,
     });
-  } catch (err) {
-    console.log(err);
+  } catch (error) {
+    console.error("Error signing in:", error);
 
     return res.status(500).json({
-      message: "internal error",
+      message: "Error interno del servidor",
     });
   }
 };
+
 export const validateToken = async (req: Request, res: Response) => {
   try {
-    const response = jwt.verify(
-      req.body.token,
-      process.env.JWTSECRET as string,
-    );
+    const { token } = req.body;
 
-    const password = (response as JwtPayload).password;
-    const id = (response as JwtPayload).id;
-
-    const employeeFound = await getOneEmployeeToValidateToken(id, password);
-
-    if (!employeeFound) {
-      return res.status(400).json({ message: "token is invalid" });
+    if (!token) {
+      return res.status(400).json({
+        message: "El token es obligatorio",
+      });
     }
 
-    return res.status(200).json({ message: "token is valid" });
-  } catch {
-    return res.status(500).json({ message: "internal server error" });
+    const jwtSecret = process.env.JWTSECRET;
+
+    if (!jwtSecret) {
+      throw new Error("JWTSECRET no está configurado");
+    }
+
+    const decoded = jwt.verify(token, jwtSecret) as JwtPayload;
+
+    const userId = Number(decoded.id);
+
+    if (!Number.isInteger(userId)) {
+      return res.status(401).json({
+        message: "Token inválido",
+      });
+    }
+
+    const userFound = await getOneUserToValidateToken(userId);
+
+    if (!userFound || !userFound.isActive) {
+      return res.status(401).json({
+        message: "Token inválido",
+      });
+    }
+
+    return res.status(200).json({
+      message: "Token válido",
+      user: {
+        id: userFound.id,
+        name: `${userFound.firstName} ${userFound.lastName}`.trim(),
+        email: userFound.email,
+        role: userFound.role,
+      },
+    });
+  } catch (error) {
+    if (
+      error instanceof jwt.JsonWebTokenError ||
+      error instanceof jwt.TokenExpiredError
+    ) {
+      return res.status(401).json({
+        message: "Token inválido o expirado",
+      });
+    }
+
+    console.error("Error validating token:", error);
+
+    return res.status(500).json({
+      message: "Error interno del servidor",
+    });
   }
 };
