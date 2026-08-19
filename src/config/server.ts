@@ -13,6 +13,7 @@ import branchRoute from "../routes/branch.routes";
 import jobTitleRoute from "../routes/jobTitle.routes";
 import employeeRoute from "../routes/employee.routes";
 import emergencyContactRoute from "../routes/emergencyContact.routes";
+import employeeDocumentRoute from "../routes/employeeDocument.routes";
 
 const app = express();
 
@@ -35,5 +36,6 @@ app.use("/api/branch", verifyToken, branchRoute);
 app.use("/api/job-title", verifyToken, jobTitleRoute);
 app.use("/api/employee", verifyToken, employeeRoute);
 app.use("/api/emergency-contact", verifyToken, emergencyContactRoute);
+app.use("/api/employee-document", verifyToken, employeeDocumentRoute);
 
 export default app;
