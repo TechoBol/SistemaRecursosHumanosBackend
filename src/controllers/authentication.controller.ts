@@ -69,7 +69,7 @@ export const signIn = async (req: Request, res: Response) => {
     };
 
     const token = jwt.sign(payload, jwtSecret, {
-      expiresIn: "8h",
+      // expiresIn: "8h",
     });
 
     await prisma.user.update({
