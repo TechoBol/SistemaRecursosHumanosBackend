@@ -11,6 +11,7 @@ export const getAllEmployeesRepository = async () => {
           branch: true,
           area: true,
           jobTitle: true,
+          contractJobTitle: true,
           contractCompany: true,
           consolidatedCompany: true,
         },
@@ -33,6 +34,7 @@ export const getEmployeeByIdRepository = async (id: number) => {
           branch: true,
           area: true,
           jobTitle: true,
+          contractJobTitle: true,
           contractCompany: true,
           consolidatedCompany: true,
         },
@@ -63,6 +65,7 @@ export const createEmployeeRepository = async (
   },
   contractData: {
     contractCompanyId: number;
+    contractJobTitleId: number;
     consolidatedCompanyId: number;
     branchId: number;
     areaId: number;
@@ -82,6 +85,7 @@ export const createEmployeeRepository = async (
       data: {
         employeeId: employee.id,
         contractCompanyId: contractData.contractCompanyId,
+        contractJobTitleId: contractData.contractJobTitleId,
         consolidatedCompanyId: contractData.consolidatedCompanyId,
         branchId: contractData.branchId,
         areaId: contractData.areaId,
@@ -104,6 +108,7 @@ export const createEmployeeRepository = async (
             branch: true,
             area: true,
             jobTitle: true,
+            contractJobTitle: true,
             contractCompany: true,
             consolidatedCompany: true,
           },
@@ -127,6 +132,7 @@ export const updateEmployeeRepository = async (
   },
   contractData?: {
     contractCompanyId?: number;
+    contractJobTitleId?: number;
     consolidatedCompanyId?: number;
     branchId?: number;
     areaId?: number;
@@ -162,6 +168,7 @@ export const updateEmployeeRepository = async (
           data: {
             employeeId: id,
             contractCompanyId: contractData.contractCompanyId || 1,
+            contractJobTitleId: contractData.contractJobTitleId || 1,
             consolidatedCompanyId: contractData.consolidatedCompanyId || 1,
             branchId: contractData.branchId || 1,
             areaId: contractData.areaId || 1,
@@ -186,6 +193,7 @@ export const updateEmployeeRepository = async (
             branch: true,
             area: true,
             jobTitle: true,
+            contractJobTitle: true,
             contractCompany: true,
             consolidatedCompany: true,
           },
