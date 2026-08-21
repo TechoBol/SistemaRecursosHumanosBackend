@@ -58,6 +58,7 @@ export const createEmployee = async (req: Request, res: Response) => {
       phone,
       address,
       contractCompanyId,
+      contractJobTitleId,
       consolidatedCompanyId,
       employeeType,
       branchId,
@@ -69,7 +70,7 @@ export const createEmployee = async (req: Request, res: Response) => {
       status,
     } = req.body;
 
-    if (!firstName || !lastName || !ci || !contractCompanyId || !consolidatedCompanyId || !branchId || !areaId || !jobTitleId || !contractDate) {
+    if (!firstName || !lastName || !ci || !contractCompanyId || !contractJobTitleId || !consolidatedCompanyId || !branchId || !areaId || !jobTitleId || !contractDate) {
       return res.status(400).json({
         message: "Faltan campos obligatorios para registrar al empleado",
       });
@@ -101,6 +102,7 @@ export const createEmployee = async (req: Request, res: Response) => {
 
     const contractData = {
       contractCompanyId: Number(contractCompanyId),
+      contractJobTitleId: Number(contractJobTitleId),
       consolidatedCompanyId: Number(consolidatedCompanyId),
       branchId: Number(branchId),
       areaId: Number(areaId),
@@ -150,6 +152,7 @@ export const updateEmployee = async (req: Request, res: Response) => {
       phone,
       address,
       contractCompanyId,
+      contractJobTitleId,
       consolidatedCompanyId,
       employeeType,
       branchId,
@@ -186,6 +189,7 @@ export const updateEmployee = async (req: Request, res: Response) => {
     let contractUpdateData: any = undefined;
     if (
       contractCompanyId !== undefined ||
+      contractJobTitleId !== undefined ||
       consolidatedCompanyId !== undefined ||
       branchId !== undefined ||
       areaId !== undefined ||
@@ -198,6 +202,7 @@ export const updateEmployee = async (req: Request, res: Response) => {
     ) {
       contractUpdateData = {};
       if (contractCompanyId !== undefined) contractUpdateData.contractCompanyId = Number(contractCompanyId);
+      if (contractJobTitleId !== undefined) contractUpdateData.contractJobTitleId = Number(contractJobTitleId);
       if (consolidatedCompanyId !== undefined) contractUpdateData.consolidatedCompanyId = Number(consolidatedCompanyId);
       if (branchId !== undefined) contractUpdateData.branchId = Number(branchId);
       if (areaId !== undefined) contractUpdateData.areaId = Number(areaId);
