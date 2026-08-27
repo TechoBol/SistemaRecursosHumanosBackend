@@ -48,6 +48,7 @@ enum MemorandumType {
 enum AttendanceIncidentType {
   PERMISSION
   ABSENCE
+  LATENESS
 }
 
 enum AttendanceDurationType {
@@ -348,7 +349,8 @@ model AttendanceIncident {
   incidentDate  DateTime               @map("incident_date") @db.Date
   reason        String?                @db.VarChar(180)
   description   String?                @db.Text
-  isJustified   Boolean                @default(false) @map("is_justified")
+  discount      Decimal                @default(0) @map("discount") @db.Decimal(10, 2)
+  registeredBy  String                 @map("registered_by") @db.VarChar(120)
   attachmentUrl String?                @map("attachment_url") @db.VarChar(500)
   createdAt     DateTime               @default(now()) @map("created_at")
   updatedAt     DateTime               @updatedAt @map("updated_at")
