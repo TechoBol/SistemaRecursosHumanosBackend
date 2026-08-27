@@ -262,12 +262,12 @@ model EmployeeContract {
   createdAt             DateTime       @default(now()) @map("created_at")
   updatedAt             DateTime       @updatedAt @map("updated_at")
 
-  employee            Employee @relation(fields: [employeeId], references: [id], onDelete: Restrict)
-  contractCompany     Company  @relation("ContractCompany", fields: [contractCompanyId], references: [id], onDelete: Restrict)
-  consolidatedCompany Company  @relation("ConsolidatedCompany", fields: [consolidatedCompanyId], references: [id], onDelete: Restrict)
-  branch              Branch   @relation(fields: [branchId], references: [id], onDelete: Restrict)
-  area                Area     @relation(fields: [areaId], references: [id], onDelete: Restrict)
-  jobTitle            JobTitle @relation("ActualJobTitle", fields: [jobTitleId], references: [id], onDelete: Restrict)
+  employee            Employee  @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  contractCompany     Company   @relation("ContractCompany", fields: [contractCompanyId], references: [id], onDelete: Restrict)
+  consolidatedCompany Company   @relation("ConsolidatedCompany", fields: [consolidatedCompanyId], references: [id], onDelete: Restrict)
+  branch              Branch    @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  area                Area      @relation(fields: [areaId], references: [id], onDelete: Restrict)
+  jobTitle            JobTitle  @relation("ActualJobTitle", fields: [jobTitleId], references: [id], onDelete: Restrict)
   contractJobTitle    JobTitle? @relation("ContractJobTitle", fields: [contractJobTitleId], references: [id], onDelete: Restrict)
 
   terminations Termination[]
