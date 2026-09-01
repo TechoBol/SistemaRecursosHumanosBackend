@@ -237,6 +237,7 @@ model Employee {
   memorandums       Memorandum[]
   incidents         AttendanceIncident[]
   vacations         Vacation[]
+  advances          EmployeeAdvance[]
   movements         EmployeeMovement[]
   payrolls          EmployeePayroll[]
   terminations      Termination[]
@@ -380,6 +381,24 @@ model Vacation {
   @@index([startDate])
   @@index([status])
   @@map("vacations")
+}
+
+// Aticipos
+model EmployeeAdvance {
+  id           Int      @id @default(autoincrement())
+  employeeId   Int      @map("employee_id")
+  amount       Decimal  @db.Decimal(12, 2)
+  advanceDate  DateTime @map("advance_date") @db.Date
+  notes        String?  @db.Text
+  registeredBy String   @map("registered_by") @db.VarChar(120)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+
+  @@index([employeeId])
+  @@index([advanceDate])
+  @@map("employee_advances")
 }
 
 model EmployeeMovement {
