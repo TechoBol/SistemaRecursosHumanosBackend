@@ -14,6 +14,8 @@ import jobTitleRoute from "../routes/jobTitle.routes";
 import employeeRoute from "../routes/employee.routes";
 import emergencyContactRoute from "../routes/emergencyContact.routes";
 import employeeDocumentRoute from "../routes/employeeDocument.routes";
+import attendanceIncidentRoute from "../routes/attendanceIncident.routes";
+import employeeAdvanceRoute from "../routes/employeeAdvance.routes";
 
 const app = express();
 
@@ -37,5 +39,7 @@ app.use("/api/job-title", verifyToken, jobTitleRoute);
 app.use("/api/employee", verifyToken, employeeRoute);
 app.use("/api/emergency-contact", verifyToken, emergencyContactRoute);
 app.use("/api/employee-document", verifyToken, employeeDocumentRoute);
+app.use("/api/attendance-incident", verifyToken, attendanceIncidentRoute);
+app.use("/api/employee-advance", verifyToken, employeeAdvanceRoute);
 
 export default app;
