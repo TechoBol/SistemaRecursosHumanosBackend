@@ -5,6 +5,17 @@ import {
   getAdvancesByEmployeeId,
   updateAdvance,
 } from "../repository/employeeAdvance.repository";
+import { AdvanceType } from "@prisma/client";
+
+const TYPE_MAP: Record<string, AdvanceType> = {
+  salary: AdvanceType.SALARY,
+  debt: AdvanceType.DEBT,
+};
+
+const REVERSE_TYPE_MAP: Record<AdvanceType, string> = {
+  [AdvanceType.SALARY]: "salary",
+  [AdvanceType.DEBT]: "debt",
+};
 
 export const getAdvances = async (req: Request, res: Response) => {
   try {
@@ -19,6 +30,7 @@ export const getAdvances = async (req: Request, res: Response) => {
     const advances = dbAdvances.map((adv) => ({
       id: adv.id,
       employeeId: adv.employeeId,
+      type: REVERSE_TYPE_MAP[adv.type] || "salary",
       amount: Number(adv.amount),
       date: adv.advanceDate.toISOString().split("T")[0],
       notes: adv.notes || "",
@@ -45,7 +57,7 @@ export const createAdvanceController = async (req: Request, res: Response) => {
       });
     }
 
-    const { amount, date, notes, registeredBy } = req.body;
+    const { type, amount, date, notes, registeredBy } = req.body;
     const parsedAmount = Number(amount);
 
     if (isNaN(parsedAmount) || parsedAmount <= 0 || !date || !registeredBy) {
@@ -61,7 +73,10 @@ export const createAdvanceController = async (req: Request, res: Response) => {
       });
     }
 
+    const advanceType = type && TYPE_MAP[type] ? TYPE_MAP[type] : AdvanceType.SALARY;
+
     const newAdvance = await createAdvance(employeeId, {
+      type: advanceType,
       amount: parsedAmount,
       advanceDate,
       notes: notes ? String(notes).trim() : null,
@@ -73,6 +88,7 @@ export const createAdvanceController = async (req: Request, res: Response) => {
       data: {
         id: newAdvance.id,
         employeeId: newAdvance.employeeId,
+        type: REVERSE_TYPE_MAP[newAdvance.type],
         amount: Number(newAdvance.amount),
         date: newAdvance.advanceDate.toISOString().split("T")[0],
         notes: newAdvance.notes || "",
@@ -98,8 +114,12 @@ export const updateAdvanceController = async (req: Request, res: Response) => {
       });
     }
 
-    const { amount, date, notes, registeredBy } = req.body;
+    const { type, amount, date, notes, registeredBy } = req.body;
     const updateData: any = {};
+
+    if (type !== undefined) {
+      updateData.type = TYPE_MAP[type] || AdvanceType.SALARY;
+    }
 
     if (amount !== undefined) {
       const parsedAmount = Number(amount);
@@ -131,6 +151,7 @@ export const updateAdvanceController = async (req: Request, res: Response) => {
       data: {
         id: updated.id,
         employeeId: updated.employeeId,
+        type: REVERSE_TYPE_MAP[updated.type],
         amount: Number(updated.amount),
         date: updated.advanceDate.toISOString().split("T")[0],
         notes: updated.notes || "",
