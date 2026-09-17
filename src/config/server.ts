@@ -16,6 +16,7 @@ import emergencyContactRoute from "../routes/emergencyContact.routes";
 import employeeDocumentRoute from "../routes/employeeDocument.routes";
 import attendanceIncidentRoute from "../routes/attendanceIncident.routes";
 import employeeAdvanceRoute from "../routes/employeeAdvance.routes";
+import vacationRoute from "../routes/vacation.routes";
 
 const app = express();
 
@@ -41,5 +42,6 @@ app.use("/api/emergency-contact", verifyToken, emergencyContactRoute);
 app.use("/api/employee-document", verifyToken, employeeDocumentRoute);
 app.use("/api/attendance-incident", verifyToken, attendanceIncidentRoute);
 app.use("/api/employee-advance", verifyToken, employeeAdvanceRoute);
+app.use("/api/vacation", verifyToken, vacationRoute);
 
 export default app;
