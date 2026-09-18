@@ -99,8 +99,8 @@ model Company {
   branches                      CompanyBranch[]
   contractualEmployeeContracts  EmployeeContract[] @relation("ContractCompany")
   consolidatedEmployeeContracts EmployeeContract[] @relation("ConsolidatedCompany")
-  contractualEmployeePayrolls   EmployeePayroll[]  @relation("PayrollContractCompany")
-  consolidatedEmployeePayrolls  EmployeePayroll[]  @relation("PayrollConsolidatedCompany")
+  contractualPayrolls           Payroll[]          @relation("PayrollContractCompany")
+  consolidatedPayrolls          Payroll[]          @relation("PayrollConsolidatedCompany")
 
   @@map("companies")
 }
@@ -207,8 +207,7 @@ model User {
   lastAccessAt DateTime? @map("last_access_at")
   createdAt    DateTime  @default(now()) @map("created_at")
 
-  role                   Role              @relation(fields: [roleId], references: [id], onDelete: Restrict)
-  generatedPayrolls      EmployeePayroll[]
+  role                   Role          @relation(fields: [roleId], references: [id], onDelete: Restrict)
   createdMemorandums     Memorandum[]
   registeredTerminations Termination[]
 
@@ -249,7 +248,7 @@ model Employee {
   vacations         Vacation[]
   advances          EmployeeAdvance[]
   movements         EmployeeMovement[]
-  payrolls          EmployeePayroll[]
+  payrolls          Payroll[]
   terminations      Termination[]
 
   @@index([status])
@@ -438,40 +437,35 @@ model EmployeeMovement {
   @@map("employee_movements")
 }
 
-model EmployeePayroll {
+model Payroll {
   id                    Int           @id @default(autoincrement())
   employeeId            Int           @map("employee_id")
   contractCompanyId     Int           @map("contract_company_id")
   consolidatedCompanyId Int           @map("consolidated_company_id")
-  generatedById         Int           @map("generated_by_id")
-  year                  Int
-  month                 Int
   baseSalary            Decimal       @map("base_salary") @db.Decimal(12, 2)
   workedDays            Decimal       @default(30) @map("worked_days") @db.Decimal(5, 2)
   earnedSalary          Decimal       @map("earned_salary") @db.Decimal(12, 2)
   seniorityBonus        Decimal       @default(0) @map("seniority_bonus") @db.Decimal(12, 2)
   otherBonuses          Decimal       @default(0) @map("other_bonuses") @db.Decimal(12, 2)
-  discounts             Decimal       @default(0) @db.Decimal(12, 2)
-  advances              Decimal       @default(0) @db.Decimal(12, 2)
+  grossPay              Decimal       @map("gross_pay") @db.Decimal(12, 2)
   afpDeduction          Decimal       @default(0) @map("afp_deduction") @db.Decimal(12, 2)
-  otherDeductions       Decimal       @default(0) @map("other_deductions") @db.Decimal(12, 2)
-  totalEarnings         Decimal       @map("total_earnings") @db.Decimal(12, 2)
+  absenceDeduction      Decimal       @default(0) @map("absence_deduction") @db.Decimal(12, 2)
+  advanceDeduction      Decimal       @default(0) @map("advance_deduction") @db.Decimal(12, 2)
   totalDeductions       Decimal       @map("total_deductions") @db.Decimal(12, 2)
   netSalary             Decimal       @map("net_salary") @db.Decimal(12, 2)
   status                PayrollStatus @default(DRAFT)
-  generatedAt           DateTime      @default(now()) @map("generated_at")
-  updatedAt             DateTime      @updatedAt @map("updated_at")
+  createdAt             DateTime      @default(now()) @map("create_at")
+  updatedAt             DateTime      @updatedAt @map("update_at")
 
   employee            Employee @relation(fields: [employeeId], references: [id], onDelete: Restrict)
   contractCompany     Company  @relation("PayrollContractCompany", fields: [contractCompanyId], references: [id], onDelete: Restrict)
   consolidatedCompany Company  @relation("PayrollConsolidatedCompany", fields: [consolidatedCompanyId], references: [id], onDelete: Restrict)
-  generatedBy         User     @relation(fields: [generatedById], references: [id], onDelete: Restrict)
 
-  @@unique([employeeId, year, month])
-  @@index([contractCompanyId, year, month])
-  @@index([consolidatedCompanyId, year, month])
+  @@index([employeeId])
+  @@index([contractCompanyId])
+  @@index([consolidatedCompanyId])
   @@index([status])
-  @@map("employee_payrolls")
+  @@map("payrolls")
 }
 
 model Termination {
