@@ -227,11 +227,10 @@ export const syncPayrollsForPeriod = async (year: number, month: number) => {
       incidents.reduce((acc, inc) => acc + Number(inc.discount), 0).toFixed(2)
     );
 
-    // Descuento Anticipos de sueldo en el mes
+    // Descuento Anticipos en el mes (TODOS los anticipos registrados en el mes)
     const advances = await prisma.employeeAdvance.findMany({
       where: {
         employeeId: contract.employeeId,
-        type: "SALARY",
         advanceDate: {
           gte: startDateOfMonth,
           lte: endDateOfMonth,
