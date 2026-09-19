@@ -442,6 +442,8 @@ model Payroll {
   employeeId            Int           @map("employee_id")
   contractCompanyId     Int           @map("contract_company_id")
   consolidatedCompanyId Int           @map("consolidated_company_id")
+  year                  Int           @map("year")
+  month                 Int           @map("month")
   baseSalary            Decimal       @map("base_salary") @db.Decimal(12, 2)
   workedDays            Decimal       @default(30) @map("worked_days") @db.Decimal(5, 2)
   earnedSalary          Decimal       @map("earned_salary") @db.Decimal(12, 2)
@@ -461,9 +463,11 @@ model Payroll {
   contractCompany     Company  @relation("PayrollContractCompany", fields: [contractCompanyId], references: [id], onDelete: Restrict)
   consolidatedCompany Company  @relation("PayrollConsolidatedCompany", fields: [consolidatedCompanyId], references: [id], onDelete: Restrict)
 
+  @@unique([employeeId, year, month])
   @@index([employeeId])
-  @@index([contractCompanyId])
-  @@index([consolidatedCompanyId])
+  @@index([contractCompanyId, year, month])
+  @@index([consolidatedCompanyId, year, month])
+  @@index([year, month])
   @@index([status])
   @@map("payrolls")
 }
