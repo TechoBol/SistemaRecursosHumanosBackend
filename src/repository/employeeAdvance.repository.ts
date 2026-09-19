@@ -1,4 +1,5 @@
 import prisma from "../config/db";
+import { AdvanceType } from "@prisma/client";
 
 export const getAdvancesByEmployeeId = async (employeeId: number) => {
   return prisma.employeeAdvance.findMany({
@@ -14,6 +15,7 @@ export const getAdvancesByEmployeeId = async (employeeId: number) => {
 export const createAdvance = async (
   employeeId: number,
   data: {
+    type?: AdvanceType;
     amount: number;
     advanceDate: Date;
     notes?: string | null;
@@ -23,6 +25,7 @@ export const createAdvance = async (
   return prisma.employeeAdvance.create({
     data: {
       employeeId,
+      type: data.type || AdvanceType.SALARY,
       amount: data.amount,
       advanceDate: data.advanceDate,
       notes: data.notes,
@@ -34,6 +37,7 @@ export const createAdvance = async (
 export const updateAdvance = async (
   id: number,
   data: {
+    type?: AdvanceType;
     amount?: number;
     advanceDate?: Date;
     notes?: string | null;
