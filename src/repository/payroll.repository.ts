@@ -269,10 +269,13 @@ export const syncPayrollsForPeriod = async (year: number, month: number) => {
         },
       });
     } else {
-      // Si ya existe la nómina del mes actual, actualizar con los mismos cálculos exactos
+      // Si ya existe la nómina del mes actual, actualizar con los mismos cálculos exactos y el haber básico del contrato
       await prisma.payroll.update({
         where: { id: existingPayroll.id },
         data: {
+          baseSalary: contract.baseSalary,
+          contractCompanyId: contract.contractCompanyId,
+          consolidatedCompanyId: contract.consolidatedCompanyId,
           workedDays,
           earnedSalary,
           seniorityBonus,
@@ -370,7 +373,7 @@ export const updatePayroll = async (
   const activeContract = currentPayroll.employee.contracts[0];
   const isFiscal = activeContract ? activeContract.contractType !== "CONSULTING" : true;
 
-  const baseSalary = Number(currentPayroll.baseSalary);
+  const baseSalary = activeContract ? Number(activeContract.baseSalary) : Number(currentPayroll.baseSalary);
   const workedDays =
     data.workedDays !== undefined
       ? data.workedDays
@@ -406,6 +409,7 @@ export const updatePayroll = async (
   return prisma.payroll.update({
     where: { id },
     data: {
+      baseSalary: activeContract ? activeContract.baseSalary : currentPayroll.baseSalary,
       workedDays,
       earnedSalary,
       otherBonuses,
