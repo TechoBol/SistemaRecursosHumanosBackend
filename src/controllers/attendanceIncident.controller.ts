@@ -88,8 +88,8 @@ export const createIncidentController = async (req: Request, res: Response) => {
       });
     }
 
-    // Si es "Falta" (absence), por defecto se guarda FULL_DAY (Un día)
-    const durationKey = type === "absence" ? "fullDay" : (duration || "halfDay");
+    // Respetar la duración enviada (halfDay o fullDay) tanto para permiso como para falta
+    const durationKey = duration || "fullDay";
     const dbDuration = DURATION_MAP[durationKey];
     if (!dbDuration) {
       return res.status(400).json({
@@ -154,8 +154,8 @@ export const updateIncidentController = async (req: Request, res: Response) => {
       updateData.type = dbType;
     }
 
-    if (duration !== undefined || type === "absence") {
-      const durationKey = type === "absence" ? "fullDay" : (duration || "halfDay");
+    if (duration !== undefined) {
+      const durationKey = duration || "fullDay";
       const dbDuration = DURATION_MAP[durationKey];
       if (!dbDuration) {
         return res.status(400).json({
