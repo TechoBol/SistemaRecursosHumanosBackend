@@ -18,6 +18,7 @@ import attendanceIncidentRoute from "../routes/attendanceIncident.routes";
 import employeeAdvanceRoute from "../routes/employeeAdvance.routes";
 import vacationRoute from "../routes/vacation.routes";
 import payrollRoute from "../routes/payroll.routes";
+import employeeBonusRoute from "../routes/employeeBonus.routes";
 
 const app = express();
 
@@ -45,5 +46,6 @@ app.use("/api/attendance-incident", verifyToken, attendanceIncidentRoute);
 app.use("/api/employee-advance", verifyToken, employeeAdvanceRoute);
 app.use("/api/vacation", verifyToken, vacationRoute);
 app.use("/api/payroll", verifyToken, payrollRoute);
+app.use("/api/employee-bonus", verifyToken, employeeBonusRoute);
 
 export default app;
