@@ -189,7 +189,19 @@ export const syncPayrollsForPeriod = async (year: number, month: number) => {
       : 0;
     const seniorityBonus = Number(seniorityBonusRaw.toFixed(2));
 
-    // Movimientos extra (bonos)
+    // Bonos personalizados (employee_bonuses)
+    const activeBonuses = await prisma.employeeBonus.findMany({
+      where: {
+        employeeId: contract.employeeId,
+        isActive: true,
+      },
+    });
+    const bonusesAmount = activeBonuses.reduce((acc, bonus) => {
+      const bAmount = Number(bonus.amount) || 0;
+      if (bAmount <= 0) return acc;
+      return acc + (bAmount / 30) * workedDays;
+    }, 0);
+
     const movements = await prisma.employeeMovement.findMany({
       where: {
         employeeId: contract.employeeId,
@@ -200,9 +212,9 @@ export const syncPayrollsForPeriod = async (year: number, month: number) => {
         },
       },
     });
-    const otherBonuses = Number(
-      movements.reduce((acc, m) => acc + Number(m.amount), 0).toFixed(2)
-    );
+    const movementsAmount = movements.reduce((acc, m) => acc + Number(m.amount), 0);
+
+    const otherBonuses = Number((bonusesAmount + movementsAmount).toFixed(2));
 
     const grossPay = Number(
       (earnedSalary + seniorityBonus + otherBonuses).toFixed(2)
