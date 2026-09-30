@@ -2,6 +2,21 @@ import prisma from "../config/db";
 
 const GESTORA_RATE = 0.1271;
 
+function getBoliviaDate(): Date {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/La_Paz",
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+  }).formatToParts(new Date());
+  const get = (type: string) => Number(parts.find((p) => p.type === type)?.value);
+  return new Date(
+    get("year"),
+    get("month") - 1,
+    get("day")
+  );
+}
+
 function parseDate(value: any): Date | null {
   if (!value) return null;
   const str = typeof value === "string" ? value.split("T")[0] : value.toISOString().split("T")[0];
@@ -62,7 +77,7 @@ function getAnniversary(hireDate: Date, years: number): Date {
   );
 }
 
-function calculateWorkedDays(contract: any, currentDate = new Date()): number {
+function calculateWorkedDays(contract: any, currentDate = getBoliviaDate()): number {
   const hireDate = parseDate(contract?.hireDate);
   const endDate = parseDate(contract?.endDate);
   const today = normalizeDate(currentDate);
@@ -91,7 +106,7 @@ function getMonthlySeniorityBonus(baseSalary: number, rate: number): number {
 function calculateSeniorityBonus(
   contract: any,
   baseSalary: number,
-  currentDate = new Date()
+  currentDate = getBoliviaDate()
 ): number {
   const hireDate = parseDate(contract?.hireDate);
   const endDate = parseDate(contract?.endDate);
@@ -145,7 +160,7 @@ function calculateSeniorityBonus(
 }
 
 export const syncPayrollsForPeriod = async (year: number, month: number) => {
-  const now = new Date();
+  const now = getBoliviaDate();
   const currentYear = now.getFullYear();
   const currentMonth = now.getMonth() + 1;
 
@@ -310,7 +325,7 @@ export const getPayrollsByPeriodAndCompany = async (
   companyId: number,
   companyType: "contract" | "consolidated"
 ) => {
-  const now = new Date();
+  const now = getBoliviaDate();
   const currentYear = now.getFullYear();
   const currentMonth = now.getMonth() + 1;
 
