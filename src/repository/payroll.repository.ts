@@ -340,6 +340,7 @@ export const getPayrollsByPeriodAndCompany = async (
             include: {
               jobTitle: true,
               contractJobTitle: true,
+              branch: true,
             },
           },
         },
@@ -347,11 +348,18 @@ export const getPayrollsByPeriodAndCompany = async (
       contractCompany: true,
       consolidatedCompany: true,
     },
-    orderBy: {
-      employee: {
-        lastNames: "asc",
+    orderBy: [
+      {
+        employee: {
+          lastNames: "asc",
+        },
       },
-    },
+      {
+        employee: {
+          firstNames: "asc",
+        },
+      },
+    ],
   });
 };
 
@@ -441,6 +449,7 @@ export const updatePayroll = async (
             include: {
               jobTitle: true,
               contractJobTitle: true,
+              branch: true,
             },
           },
         },
