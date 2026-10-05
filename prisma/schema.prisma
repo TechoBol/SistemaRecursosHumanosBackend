@@ -29,6 +29,7 @@ enum PayrollStatus {
   GENERATED
   APPROVED
   PAID
+  CLOSED
   CANCELLED
 }
 

@@ -161,13 +161,8 @@ function calculateSeniorityBonus(
 
 export const syncPayrollsForPeriod = async (year: number, month: number) => {
   const now = getBoliviaDate();
-  const currentYear = now.getFullYear();
-  const currentMonth = now.getMonth() + 1;
-
-  // Solo sincronizar automáticamente si el período es el mes actual en curso
-  if (year !== currentYear || month !== currentMonth) {
-    return;
-  }
+  const lastDayOfPeriod = new Date(year, month, 0, 23, 59, 59);
+  const evaluationDate = now > lastDayOfPeriod ? lastDayOfPeriod : now;
 
   const startDateOfMonth = new Date(year, month - 1, 1);
   const endDateOfMonth = new Date(year, month, 0, 23, 59, 59);
@@ -193,14 +188,24 @@ export const syncPayrollsForPeriod = async (year: number, month: number) => {
       },
     });
 
+    // Si la planilla para este empleado ya fue finalizada/cerrada, conservar intactos los valores
+    if (
+      existingPayroll &&
+      (existingPayroll.status === "CLOSED" ||
+        existingPayroll.status === "PAID" ||
+        existingPayroll.status === "APPROVED")
+    ) {
+      continue;
+    }
+
     const isFiscal = contract.contractType !== "CONSULTING";
     const baseSalary = Number(contract.baseSalary) || 0;
-    const workedDays = calculateWorkedDays(contract, now);
+    const workedDays = calculateWorkedDays(contract, evaluationDate);
     const earnedSalary = Number(((baseSalary / 30) * workedDays).toFixed(2));
 
     // Bono de antigüedad idéntico a salaryCalculator.js
     const seniorityBonusRaw = isFiscal
-      ? calculateSeniorityBonus(contract, baseSalary, now)
+      ? calculateSeniorityBonus(contract, baseSalary, evaluationDate)
       : 0;
     const seniorityBonus = Number(seniorityBonusRaw.toFixed(2));
 
@@ -319,20 +324,45 @@ export const syncPayrollsForPeriod = async (year: number, month: number) => {
   }
 };
 
+export const finalizePayrollForPeriod = async (
+  year: number,
+  month: number,
+  companyId: number,
+  companyType: "contract" | "consolidated"
+) => {
+  // Sincroniza una última vez antes de cerrar
+  await syncPayrollsForPeriod(year, month);
+
+  const whereClause: any = {
+    year,
+    month,
+    status: {
+      notIn: ["CLOSED", "PAID", "APPROVED"],
+    },
+  };
+
+  if (companyType === "contract") {
+    whereClause.contractCompanyId = companyId;
+  } else {
+    whereClause.consolidatedCompanyId = companyId;
+  }
+
+  return prisma.payroll.updateMany({
+    where: whereClause,
+    data: {
+      status: "CLOSED",
+    },
+  });
+};
+
 export const getPayrollsByPeriodAndCompany = async (
   year: number,
   month: number,
   companyId: number,
   companyType: "contract" | "consolidated"
 ) => {
-  const now = getBoliviaDate();
-  const currentYear = now.getFullYear();
-  const currentMonth = now.getMonth() + 1;
-
-  // Solo sincronizar para el mes actual
-  if (year === currentYear && month === currentMonth) {
-    await syncPayrollsForPeriod(year, month);
-  }
+  // Sincronizar automáticamente registros no cerrados del período solicitado
+  await syncPayrollsForPeriod(year, month);
 
   const whereClause: any = {
     year,
