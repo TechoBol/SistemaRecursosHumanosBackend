@@ -178,6 +178,47 @@ export const syncPayrollsForPeriod = async (year: number, month: number) => {
   });
 
   for (const contract of activeContracts) {
+    const parsedEndDate = parseDate(contract.endDate);
+
+    // Si la fecha de fin de contrato es anterior al inicio del mes evaluado, el contrato ha finalizado
+    if (parsedEndDate && parsedEndDate < startDateOfMonth) {
+      // 1. Marcar contrato como finalizado e inactivo
+      await prisma.employeeContract.update({
+        where: { id: contract.id },
+        data: { isActive: false, status: "ENDED" },
+      });
+
+      // 2. Verificar si el empleado posee algún otro contrato activo
+      const otherActiveContracts = await prisma.employeeContract.findFirst({
+        where: {
+          employeeId: contract.employeeId,
+          id: { not: contract.id },
+          isActive: true,
+          status: "ACTIVE",
+        },
+      });
+
+      // Si no tiene más contratos activos, cambiar estado del empleado a INACTIVE
+      if (!otherActiveContracts) {
+        await prisma.employee.update({
+          where: { id: contract.employeeId },
+          data: { status: "INACTIVE" },
+        });
+      }
+
+      // 3. Eliminar planilla borrador si existiera para este período posterior a su fin de contrato
+      await prisma.payroll.deleteMany({
+        where: {
+          employeeId: contract.employeeId,
+          year,
+          month,
+          status: "DRAFT",
+        },
+      });
+
+      continue;
+    }
+
     const existingPayroll = await prisma.payroll.findUnique({
       where: {
         employeeId_year_month: {
@@ -371,21 +412,34 @@ export const getPayrollsByPeriodAndCompany = async (
 
   if (companyType === "contract") {
     whereClause.contractCompanyId = companyId;
+    whereClause.employee = {
+      contracts: {
+        some: {
+          contractType: { not: "CONSULTING" },
+        },
+      },
+    };
   } else {
     whereClause.consolidatedCompanyId = companyId;
   }
 
-  return prisma.payroll.findMany({
+  const rawPayrolls = await prisma.payroll.findMany({
     where: whereClause,
     include: {
       employee: {
         include: {
           contracts: {
-            where: { isActive: true },
+            orderBy: {
+              createdAt: "desc",
+            },
             include: {
               jobTitle: true,
               contractJobTitle: true,
-              branch: true,
+              branch: {
+                include: {
+                  city: true,
+                },
+              },
             },
           },
         },
@@ -406,6 +460,19 @@ export const getPayrollsByPeriodAndCompany = async (
       },
     ],
   });
+
+  const startDateOfMonth = new Date(year, month - 1, 1);
+
+  // Excluir registros de empleados cuyo contrato terminó antes del inicio del mes solicitado
+  return rawPayrolls.filter((p) => {
+    const contract = p.employee.contracts ? p.employee.contracts[0] : null;
+    if (!contract) return true;
+    const endDate = parseDate(contract.endDate);
+    if (endDate && endDate < startDateOfMonth) {
+      return false;
+    }
+    return true;
+  });
 };
 
 export const updatePayroll = async (
@@ -424,7 +491,9 @@ export const updatePayroll = async (
       employee: {
         include: {
           contracts: {
-            where: { isActive: true },
+            orderBy: {
+              createdAt: "desc",
+            },
           },
         },
       },
