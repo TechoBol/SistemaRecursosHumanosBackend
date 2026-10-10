@@ -161,13 +161,8 @@ function calculateSeniorityBonus(
 
 export const syncPayrollsForPeriod = async (year: number, month: number) => {
   const now = getBoliviaDate();
-  const currentYear = now.getFullYear();
-  const currentMonth = now.getMonth() + 1;
-
-  // Solo sincronizar automáticamente si el período es el mes actual en curso
-  if (year !== currentYear || month !== currentMonth) {
-    return;
-  }
+  const lastDayOfPeriod = new Date(year, month, 0, 23, 59, 59);
+  const evaluationDate = now > lastDayOfPeriod ? lastDayOfPeriod : now;
 
   const startDateOfMonth = new Date(year, month - 1, 1);
   const endDateOfMonth = new Date(year, month, 0, 23, 59, 59);
@@ -183,6 +178,47 @@ export const syncPayrollsForPeriod = async (year: number, month: number) => {
   });
 
   for (const contract of activeContracts) {
+    const parsedEndDate = parseDate(contract.endDate);
+
+    // Si la fecha de fin de contrato es anterior al inicio del mes evaluado, el contrato ha finalizado
+    if (parsedEndDate && parsedEndDate < startDateOfMonth) {
+      // 1. Marcar contrato como finalizado e inactivo
+      await prisma.employeeContract.update({
+        where: { id: contract.id },
+        data: { isActive: false, status: "ENDED" },
+      });
+
+      // 2. Verificar si el empleado posee algún otro contrato activo
+      const otherActiveContracts = await prisma.employeeContract.findFirst({
+        where: {
+          employeeId: contract.employeeId,
+          id: { not: contract.id },
+          isActive: true,
+          status: "ACTIVE",
+        },
+      });
+
+      // Si no tiene más contratos activos, cambiar estado del empleado a INACTIVE
+      if (!otherActiveContracts) {
+        await prisma.employee.update({
+          where: { id: contract.employeeId },
+          data: { status: "INACTIVE" },
+        });
+      }
+
+      // 3. Eliminar planilla borrador si existiera para este período posterior a su fin de contrato
+      await prisma.payroll.deleteMany({
+        where: {
+          employeeId: contract.employeeId,
+          year,
+          month,
+          status: "DRAFT",
+        },
+      });
+
+      continue;
+    }
+
     const existingPayroll = await prisma.payroll.findUnique({
       where: {
         employeeId_year_month: {
@@ -193,14 +229,24 @@ export const syncPayrollsForPeriod = async (year: number, month: number) => {
       },
     });
 
+    // Si la planilla para este empleado ya fue finalizada/cerrada, conservar intactos los valores
+    if (
+      existingPayroll &&
+      (existingPayroll.status === "CLOSED" ||
+        existingPayroll.status === "PAID" ||
+        existingPayroll.status === "APPROVED")
+    ) {
+      continue;
+    }
+
     const isFiscal = contract.contractType !== "CONSULTING";
     const baseSalary = Number(contract.baseSalary) || 0;
-    const workedDays = calculateWorkedDays(contract, now);
+    const workedDays = calculateWorkedDays(contract, evaluationDate);
     const earnedSalary = Number(((baseSalary / 30) * workedDays).toFixed(2));
 
     // Bono de antigüedad idéntico a salaryCalculator.js
     const seniorityBonusRaw = isFiscal
-      ? calculateSeniorityBonus(contract, baseSalary, now)
+      ? calculateSeniorityBonus(contract, baseSalary, evaluationDate)
       : 0;
     const seniorityBonus = Number(seniorityBonusRaw.toFixed(2));
 
@@ -319,24 +365,21 @@ export const syncPayrollsForPeriod = async (year: number, month: number) => {
   }
 };
 
-export const getPayrollsByPeriodAndCompany = async (
+export const finalizePayrollForPeriod = async (
   year: number,
   month: number,
   companyId: number,
   companyType: "contract" | "consolidated"
 ) => {
-  const now = getBoliviaDate();
-  const currentYear = now.getFullYear();
-  const currentMonth = now.getMonth() + 1;
-
-  // Solo sincronizar para el mes actual
-  if (year === currentYear && month === currentMonth) {
-    await syncPayrollsForPeriod(year, month);
-  }
+  // Sincroniza una última vez antes de cerrar
+  await syncPayrollsForPeriod(year, month);
 
   const whereClause: any = {
     year,
     month,
+    status: {
+      notIn: ["CLOSED", "PAID", "APPROVED"],
+    },
   };
 
   if (companyType === "contract") {
@@ -345,17 +388,58 @@ export const getPayrollsByPeriodAndCompany = async (
     whereClause.consolidatedCompanyId = companyId;
   }
 
-  return prisma.payroll.findMany({
+  return prisma.payroll.updateMany({
+    where: whereClause,
+    data: {
+      status: "CLOSED",
+    },
+  });
+};
+
+export const getPayrollsByPeriodAndCompany = async (
+  year: number,
+  month: number,
+  companyId: number,
+  companyType: "contract" | "consolidated"
+) => {
+  // Sincronizar automáticamente registros no cerrados del período solicitado
+  await syncPayrollsForPeriod(year, month);
+
+  const whereClause: any = {
+    year,
+    month,
+  };
+
+  if (companyType === "contract") {
+    whereClause.contractCompanyId = companyId;
+    whereClause.employee = {
+      contracts: {
+        some: {
+          contractType: { not: "CONSULTING" },
+        },
+      },
+    };
+  } else {
+    whereClause.consolidatedCompanyId = companyId;
+  }
+
+  const rawPayrolls = await prisma.payroll.findMany({
     where: whereClause,
     include: {
       employee: {
         include: {
           contracts: {
-            where: { isActive: true },
+            orderBy: {
+              createdAt: "desc",
+            },
             include: {
               jobTitle: true,
               contractJobTitle: true,
-              branch: true,
+              branch: {
+                include: {
+                  city: true,
+                },
+              },
             },
           },
         },
@@ -376,6 +460,19 @@ export const getPayrollsByPeriodAndCompany = async (
       },
     ],
   });
+
+  const startDateOfMonth = new Date(year, month - 1, 1);
+
+  // Excluir registros de empleados cuyo contrato terminó antes del inicio del mes solicitado
+  return rawPayrolls.filter((p) => {
+    const contract = p.employee.contracts ? p.employee.contracts[0] : null;
+    if (!contract) return true;
+    const endDate = parseDate(contract.endDate);
+    if (endDate && endDate < startDateOfMonth) {
+      return false;
+    }
+    return true;
+  });
 };
 
 export const updatePayroll = async (
@@ -394,7 +491,9 @@ export const updatePayroll = async (
       employee: {
         include: {
           contracts: {
-            where: { isActive: true },
+            orderBy: {
+              createdAt: "desc",
+            },
           },
         },
       },

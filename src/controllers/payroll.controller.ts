@@ -3,6 +3,7 @@ import {
   getPayrollsByPeriodAndCompany,
   syncPayrollsForPeriod,
   updatePayroll,
+  finalizePayrollForPeriod,
 } from "../repository/payroll.repository";
 
 export const getPayrolls = async (req: Request, res: Response) => {
@@ -31,8 +32,9 @@ export const getPayrolls = async (req: Request, res: Response) => {
       companyType
     );
 
-    const formattedPayrolls = payrolls.map((p) => {
+    let formattedPayrolls = payrolls.map((p) => {
       const activeContract = p.employee.contracts ? p.employee.contracts[0] : null;
+      const branchCity = (activeContract?.branch as any)?.city;
       return {
         id: p.id,
         employeeId: p.employeeId,
@@ -45,6 +47,8 @@ export const getPayrolls = async (req: Request, res: Response) => {
         jobTitleName: activeContract?.jobTitle?.name || "Sin cargo",
         branchId: activeContract?.branchId || 0,
         branchName: activeContract?.branch?.name || "Sin Sucursal",
+        cityId: activeContract?.branch?.cityId || branchCity?.id || 0,
+        cityName: branchCity?.name || "Sin Ciudad",
         contractCompanyId: p.contractCompanyId,
         contractCompanyName: p.contractCompany.name,
         consolidatedCompanyId: p.consolidatedCompanyId,
@@ -67,6 +71,12 @@ export const getPayrolls = async (req: Request, res: Response) => {
         updatedAt: p.updatedAt,
       };
     });
+
+    if (companyType === "contract") {
+      formattedPayrolls = formattedPayrolls.filter(
+        (p) => p.employeeType !== "Consultor"
+      );
+    }
 
     return res.json(formattedPayrolls);
   } catch (error) {
@@ -97,6 +107,7 @@ export const updatePayrollController = async (req: Request, res: Response) => {
 
     const updated = await updatePayroll(id, updateData);
     const activeContract = updated.employee.contracts ? updated.employee.contracts[0] : null;
+    const branchCity = (activeContract?.branch as any)?.city;
 
     return res.json({
       message: "Nómina actualizada correctamente",
@@ -112,6 +123,8 @@ export const updatePayrollController = async (req: Request, res: Response) => {
         jobTitleName: activeContract?.jobTitle?.name || "Sin cargo",
         branchId: activeContract?.branchId || 0,
         branchName: activeContract?.branch?.name || "Sin Sucursal",
+        cityId: activeContract?.branch?.cityId || branchCity?.id || 0,
+        cityName: branchCity?.name || "Sin Ciudad",
         contractCompanyId: updated.contractCompanyId,
         contractCompanyName: updated.contractCompany.name,
         consolidatedCompanyId: updated.consolidatedCompanyId,
@@ -157,6 +170,49 @@ export const generatePayrollsController = async (req: Request, res: Response) =>
     console.error("Error generating payrolls:", error);
     return res.status(500).json({
       message: "No se pudieron sincronizar las nóminas para el período especificado.",
+    });
+  }
+};
+
+export const finalizePayrollController = async (req: Request, res: Response) => {
+  try {
+    const { year, month, companyId, companyType } = req.body;
+    const targetYear = Number(year);
+    const targetMonth = Number(month);
+    const targetCompanyId = Number(companyId);
+    const cType = companyType === "consolidated" ? "consolidated" : "contract";
+
+    if (!targetCompanyId || isNaN(targetCompanyId) || targetCompanyId <= 0) {
+      return res.status(400).json({
+        message: "Debe proporcionar una empresa válida para finalizar la planilla.",
+      });
+    }
+
+    if (isNaN(targetYear) || isNaN(targetMonth) || targetMonth < 1 || targetMonth > 12) {
+      return res.status(400).json({
+        message: "El año y mes especificados no son válidos.",
+      });
+    }
+
+    const now = new Date();
+    const lastDayObj = new Date(targetYear, targetMonth, 0);
+    const startOfLastDay = new Date(targetYear, targetMonth - 1, lastDayObj.getDate(), 0, 0, 0);
+
+    if (now < startOfLastDay) {
+      return res.status(400).json({
+        message: `La planilla solo puede finalizarse a partir del último día del mes (${lastDayObj.getDate()}/${targetMonth}/${targetYear}).`,
+      });
+    }
+
+    await finalizePayrollForPeriod(targetYear, targetMonth, targetCompanyId, cType);
+
+    return res.json({
+      message: `La planilla del período ${targetMonth}/${targetYear} ha sido finalizada correctamente.`,
+    });
+  } catch (error) {
+    console.error("Error finalizing payroll:", error);
+    return res.status(500).json({
+      message: "No se pudo finalizar la planilla para el período especificado.",
     });
   }
 };
