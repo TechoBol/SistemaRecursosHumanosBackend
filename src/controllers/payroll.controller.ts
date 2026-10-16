@@ -44,7 +44,11 @@ export const getPayrolls = async (req: Request, res: Response) => {
         employeeDocumentNumber: p.employee.documentNumber,
         hireDate: activeContract?.hireDate ? activeContract.hireDate.toISOString().split("T")[0] : null,
         employeeType: activeContract?.contractType === "CONSULTING" ? "Consultor" : "Fiscal",
-        jobTitleName: activeContract?.jobTitle?.name || "Sin cargo",
+        jobTitleName:
+          companyType === "contract"
+            ? activeContract?.contractJobTitle?.name || "Sin cargo"
+            : activeContract?.jobTitle?.name || "Sin cargo",
+        contractJobTitleName: activeContract?.contractJobTitle?.name || "Sin cargo",
         branchId: activeContract?.branchId || 0,
         branchName: activeContract?.branch?.name || "Sin Sucursal",
         cityId: activeContract?.branch?.cityId || branchCity?.id || 0,
@@ -121,6 +125,7 @@ export const updatePayrollController = async (req: Request, res: Response) => {
         hireDate: activeContract?.hireDate ? activeContract.hireDate.toISOString().split("T")[0] : null,
         employeeType: activeContract?.contractType === "CONSULTING" ? "Consultor" : "Fiscal",
         jobTitleName: activeContract?.jobTitle?.name || "Sin cargo",
+        contractJobTitleName: activeContract?.contractJobTitle?.name || "Sin cargo",
         branchId: activeContract?.branchId || 0,
         branchName: activeContract?.branch?.name || "Sin Sucursal",
         cityId: activeContract?.branch?.cityId || branchCity?.id || 0,

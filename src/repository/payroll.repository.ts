@@ -563,7 +563,11 @@ export const updatePayroll = async (
             include: {
               jobTitle: true,
               contractJobTitle: true,
-              branch: true,
+              branch: {
+                include: {
+                  city: true,
+                },
+              },
             },
           },
         },
