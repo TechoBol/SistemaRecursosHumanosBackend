@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import {
   createIncident,
   deleteIncident,
+  getAllIncidents,
   getIncidentsByEmployeeId,
   updateIncident,
 } from "../repository/attendanceIncident.repository";
@@ -29,6 +30,42 @@ const REVERSE_DURATION_MAP: Record<AttendanceDurationType, string> = {
   [AttendanceDurationType.HALF_DAY]: "halfDay",
   [AttendanceDurationType.FULL_DAY]: "fullDay",
   [AttendanceDurationType.HOURS]: "hours",
+};
+
+export const getAllIncidentsController = async (req: Request, res: Response) => {
+  try {
+    const year = req.query.year ? Number(req.query.year) : undefined;
+    const month = req.query.month ? Number(req.query.month) : undefined;
+
+    if ((year !== undefined && isNaN(year)) || (month !== undefined && isNaN(month))) {
+      return res.status(400).json({
+        message: "Los parámetros de año o mes no son válidos",
+      });
+    }
+
+    const dbIncidents = await getAllIncidents(year, month);
+    const incidents = dbIncidents.map((incident) => ({
+      id: incident.id,
+      employeeId: incident.employeeId,
+      employee: incident.employee,
+      type: REVERSE_TYPE_MAP[incident.type],
+      duration: REVERSE_DURATION_MAP[incident.durationType] || "fullDay",
+      date: incident.incidentDate.toISOString().split("T")[0],
+      reason: incident.reason || "",
+      description: incident.description || "",
+      discount: Number(incident.discount),
+      registeredBy: incident.registeredBy,
+      createdAt: incident.createdAt,
+      updatedAt: incident.updatedAt,
+    }));
+
+    return res.json(incidents);
+  } catch (error) {
+    console.error("Error getting all attendance incidents:", error);
+    return res.status(500).json({
+      message: "No se pudieron obtener los registros de asistencia",
+    });
+  }
 };
 
 export const getIncidents = async (req: Request, res: Response) => {

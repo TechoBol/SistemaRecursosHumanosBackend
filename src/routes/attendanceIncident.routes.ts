@@ -2,12 +2,14 @@ import { Router } from "express";
 import {
   createIncidentController,
   deleteIncidentController,
+  getAllIncidentsController,
   getIncidents,
   updateIncidentController,
 } from "../controllers/attendanceIncident.controller";
 
 const router = Router();
 
+router.get("/all", getAllIncidentsController);
 router.get("/get-incidents/:employeeId", getIncidents);
 router.post("/create-incident/:employeeId", createIncidentController);
 router.put("/update-incident/:id", updateIncidentController);
