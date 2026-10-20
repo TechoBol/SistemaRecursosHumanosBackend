@@ -12,6 +12,52 @@ export const getVacationsByEmployeeId = async (employeeId: number) => {
   });
 };
 
+export const getAllVacations = async (year?: number, month?: number) => {
+  let where: any = {};
+  if (year && month) {
+    const startStr = `${year}-${String(month).padStart(2, "0")}-01`;
+    const lastDay = new Date(year, month, 0).getDate();
+    const endStr = `${year}-${String(month).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+    const startOfMonth = new Date(`${startStr}T00:00:00.000Z`);
+    const endOfMonth = new Date(`${endStr}T23:59:59.999Z`);
+
+    where = {
+      AND: [
+        { startDate: { lte: endOfMonth } },
+        {
+          OR: [
+            { endDate: { gte: startOfMonth } },
+            {
+              AND: [
+                { endDate: null },
+                { startDate: { gte: startOfMonth } },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+  }
+
+  return prisma.vacation.findMany({
+    where,
+    include: {
+      employee: {
+        select: {
+          id: true,
+          firstNames: true,
+          lastNames: true,
+          documentNumber: true,
+          status: true,
+        },
+      },
+    },
+    orderBy: {
+      startDate: "desc",
+    },
+  });
+};
+
 export const createVacation = async (
   employeeId: number,
   data: {

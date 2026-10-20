@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import {
   createVacation,
   deleteVacation,
+  getAllVacations,
   getVacationsByEmployeeId,
   updateVacation,
 } from "../repository/vacation.repository";
@@ -15,6 +16,43 @@ const TYPE_MAP: Record<string, VacationType> = {
 const REVERSE_TYPE_MAP: Record<VacationType, string> = {
   [VacationType.DAYS]: "days",
   [VacationType.MONEY]: "money",
+};
+
+export const getAllVacationsController = async (req: Request, res: Response) => {
+  try {
+    const year = req.query.year ? Number(req.query.year) : undefined;
+    const month = req.query.month ? Number(req.query.month) : undefined;
+
+    if ((year !== undefined && isNaN(year)) || (month !== undefined && isNaN(month))) {
+      return res.status(400).json({
+        message: "Los parámetros de año o mes no son válidos",
+      });
+    }
+
+    const dbVacations = await getAllVacations(year, month);
+    const vacations = dbVacations.map((vac) => ({
+      id: vac.id,
+      employeeId: vac.employeeId,
+      employee: vac.employee,
+      type: REVERSE_TYPE_MAP[vac.type] || "days",
+      amount: vac.amount ? Number(vac.amount) : null,
+      startDate: vac.startDate.toISOString().split("T")[0],
+      endDate: vac.endDate ? vac.endDate.toISOString().split("T")[0] : null,
+      days: Number(vac.days),
+      status: vac.status,
+      notes: vac.notes || "",
+      registeredBy: vac.registeredBy || "",
+      createdAt: vac.createdAt,
+      updatedAt: vac.updatedAt,
+    }));
+
+    return res.json(vacations);
+  } catch (error) {
+    console.error("Error getting all vacations:", error);
+    return res.status(500).json({
+      message: "No se pudieron obtener las vacaciones",
+    });
+  }
 };
 
 export const getVacations = async (req: Request, res: Response) => {
