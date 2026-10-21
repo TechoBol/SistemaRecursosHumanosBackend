@@ -12,6 +12,39 @@ export const getIncidentsByEmployeeId = async (employeeId: number) => {
   });
 };
 
+export const getAllIncidents = async (year?: number, month?: number) => {
+  let where: any = {};
+  if (year && month) {
+    const startStr = `${year}-${String(month).padStart(2, "0")}-01`;
+    const lastDay = new Date(year, month, 0).getDate();
+    const endStr = `${year}-${String(month).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+    where = {
+      incidentDate: {
+        gte: new Date(`${startStr}T00:00:00.000Z`),
+        lte: new Date(`${endStr}T23:59:59.999Z`),
+      },
+    };
+  }
+
+  return prisma.attendanceIncident.findMany({
+    where,
+    include: {
+      employee: {
+        select: {
+          id: true,
+          firstNames: true,
+          lastNames: true,
+          documentNumber: true,
+          status: true,
+        },
+      },
+    },
+    orderBy: {
+      incidentDate: "desc",
+    },
+  });
+};
+
 export const createIncident = async (
   employeeId: number,
   data: {
