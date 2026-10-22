@@ -4,9 +4,10 @@ export const getAllEmployeesRepository = async () => {
   return prisma.employee.findMany({
     include: {
       contracts: {
-        where: {
-          isActive: true,
-        },
+        orderBy: [
+          { isActive: "desc" },
+          { id: "desc" },
+        ],
         include: {
           branch: true,
           area: true,
