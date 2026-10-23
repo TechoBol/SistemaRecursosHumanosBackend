@@ -103,30 +103,30 @@ function getMonthlySeniorityBonus(baseSalary: number, rate: number): number {
   return baseSalary * rate * 3;
 }
 
-function calculateSeniorityBonus(
+export function getSeniorityBonusDetails(
   contract: any,
   baseSalary: number,
   currentDate = getBoliviaDate()
-): number {
+): { amount: number; description: string } {
   const hireDate = parseDate(contract?.hireDate);
   const endDate = parseDate(contract?.endDate);
   const today = normalizeDate(currentDate);
 
   if (!hireDate || !baseSalary) {
-    return 0;
+    return { amount: 0, description: "Menos de 2 años" };
   }
 
   const effectiveDate = getEffectiveDate(today, endDate);
 
   if (endDate && isBeforeMonth(endDate, today)) {
-    return 0;
+    return { amount: 0, description: "Contrato finalizado" };
   }
 
   const anniversary2 = getAnniversary(hireDate, 2);
   const anniversary5 = getAnniversary(hireDate, 5);
 
   if (effectiveDate < anniversary2) {
-    return 0;
+    return { amount: 0, description: "Menos de 2 años" };
   }
 
   const fullBonus5 = getMonthlySeniorityBonus(baseSalary, 0.05);
@@ -136,12 +136,20 @@ function calculateSeniorityBonus(
     const bonusDays = clampDays(
       effectiveDate.getDate() - anniversary2.getDate()
     );
-    return (fullBonus5 / 30) * bonusDays;
+    const amount = Number(((fullBonus5 / 30) * bonusDays).toFixed(2));
+    return {
+      amount,
+      description: `2 a 4 años (5 %) - ${bonusDays} días de bono`,
+    };
   }
 
   if (effectiveDate < anniversary5) {
     const bonusDays = getPayrollDay(effectiveDate);
-    return (fullBonus5 / 30) * bonusDays;
+    const amount = Number(((fullBonus5 / 30) * bonusDays).toFixed(2));
+    return {
+      amount,
+      description: "2 a 4 años (5 %)",
+    };
   }
 
   if (sameMonth(anniversary5, today)) {
@@ -152,11 +160,27 @@ function calculateSeniorityBonus(
     const daysAt5 = Math.max(totalPayrollDays - daysAt11, 0);
     const amountAt5 = (fullBonus5 / 30) * daysAt5;
     const amountAt11 = (fullBonus11 / 30) * daysAt11;
-    return amountAt5 + amountAt11;
+    const amount = Number((amountAt5 + amountAt11).toFixed(2));
+    return {
+      amount,
+      description: `5 a 7 años (11 %) - ${daysAt11} días al 11% / ${daysAt5} días al 5%`,
+    };
   }
 
   const bonusDays = getPayrollDay(effectiveDate);
-  return (fullBonus11 / 30) * bonusDays;
+  const amount = Number(((fullBonus11 / 30) * bonusDays).toFixed(2));
+  return {
+    amount,
+    description: "5 a 7 años (11 %)",
+  };
+}
+
+function calculateSeniorityBonus(
+  contract: any,
+  baseSalary: number,
+  currentDate = getBoliviaDate()
+): number {
+  return getSeniorityBonusDetails(contract, baseSalary, currentDate).amount;
 }
 
 export const syncPayrollsForPeriod = async (year: number, month: number) => {
@@ -576,4 +600,159 @@ export const updatePayroll = async (
       consolidatedCompany: true,
     },
   });
+};
+
+export const getEmployeeSalarySummary = async (
+  employeeId: number,
+  year?: number,
+  month?: number
+) => {
+  const now = getBoliviaDate();
+  const targetYear = year || now.getFullYear();
+  const targetMonth = month || now.getMonth() + 1;
+
+  // Sincronizar nóminas del período solicitado
+  await syncPayrollsForPeriod(targetYear, targetMonth);
+
+  // Obtener empleado con sus contratos
+  const employee = await prisma.employee.findUnique({
+    where: { id: employeeId },
+    include: {
+      contracts: {
+        orderBy: [
+          { isActive: "desc" },
+          { id: "desc" },
+        ],
+        include: {
+          branch: { include: { city: true } },
+          area: true,
+          jobTitle: true,
+          contractJobTitle: true,
+          contractCompany: true,
+          consolidatedCompany: true,
+        },
+      },
+    },
+  });
+
+  if (!employee) {
+    return null;
+  }
+
+  const activeContract = employee.contracts?.find((c) => c.isActive) || employee.contracts?.[0] || null;
+  const isFiscal = activeContract?.contractType !== "CONSULTING";
+  const baseSalary = activeContract ? Number(activeContract.baseSalary) : 0;
+
+  // Obtener la nómina calculada y guardada en BD para este empleado y período
+  const payroll = await prisma.payroll.findUnique({
+    where: {
+      employeeId_year_month: {
+        employeeId,
+        year: targetYear,
+        month: targetMonth,
+      },
+    },
+  });
+
+  const workedDays = payroll ? Number(payroll.workedDays) : 0;
+
+  // Bonos registrados del empleado
+  const activeBonuses = await prisma.employeeBonus.findMany({
+    where: {
+      employeeId,
+      isActive: true,
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  const formattedBonuses = activeBonuses.map((b) => {
+    const bAmount = Number(b.amount) || 0;
+    const monthlyAmount = workedDays > 0 ? Number(((bAmount / 30) * workedDays).toFixed(2)) : 0;
+    return {
+      id: b.id,
+      name: b.name,
+      amount: bAmount,
+      monthlyAmount,
+      isActive: b.isActive,
+      createdAt: b.createdAt,
+    };
+  });
+
+  const seniorityDetails = activeContract && isFiscal
+    ? getSeniorityBonusDetails(activeContract, baseSalary, now)
+    : {
+        amount: 0,
+        description: isFiscal ? "Sin antigüedad" : "No aplica para consultores",
+      };
+
+  // Rescatar estrictamente los datos de la planilla calculada
+  const basicEarnings = payroll ? Number(payroll.earnedSalary) : 0;
+  const seniorityBonus = payroll ? Number(payroll.seniorityBonus) : 0;
+  const otherBonusesTotal = payroll ? Number(payroll.otherBonuses) : 0;
+  const totalEarned = payroll ? Number(payroll.grossPay) : 0;
+  const gestoraDeduction = payroll ? Number(payroll.afpDeduction) : 0;
+  const deudasDeduction = payroll ? Number(payroll.absenceDeduction) : 0;
+  const anticiposDeduction = payroll ? Number(payroll.advanceDeduction) : 0;
+  const totalDeductions = payroll ? Number(payroll.totalDeductions) : 0;
+  const netPayable = payroll ? Number(payroll.netSalary) : 0;
+
+  // Historial de nóminas de meses anteriores
+  const history = await prisma.payroll.findMany({
+    where: {
+      employeeId,
+      NOT: {
+        AND: [
+          { year: targetYear },
+          { month: targetMonth },
+        ],
+      },
+    },
+    orderBy: [
+      { year: "desc" },
+      { month: "desc" },
+    ],
+    include: {
+      contractCompany: true,
+      consolidatedCompany: true,
+    },
+  });
+
+  const formattedHistory = history.map((h) => ({
+    id: h.id,
+    year: h.year,
+    month: h.month,
+    baseSalary: Number(h.baseSalary),
+    workedDays: Number(h.workedDays),
+    earnedSalary: Number(h.earnedSalary),
+    seniorityBonus: Number(h.seniorityBonus),
+    otherBonuses: Number(h.otherBonuses),
+    grossPay: Number(h.grossPay),
+    afpDeduction: Number(h.afpDeduction),
+    absenceDeduction: Number(h.absenceDeduction),
+    advanceDeduction: Number(h.advanceDeduction),
+    totalDeductions: Number(h.totalDeductions),
+    netSalary: Number(h.netSalary),
+    status: h.status,
+    contractCompanyName: h.contractCompany?.name || "",
+  }));
+
+  return {
+    year: targetYear,
+    month: targetMonth,
+    baseSalary,
+    workedDays,
+    basicEarnings,
+    seniorityBonus,
+    seniorityDescription: seniorityDetails.description,
+    otherBonuses: otherBonusesTotal,
+    bonuses: formattedBonuses,
+    totalEarned,
+    gestoraDeduction,
+    deudasDeduction,
+    anticiposDeduction,
+    totalDeductions,
+    netPayable,
+    isFiscal,
+    history: formattedHistory,
+  };
 };
