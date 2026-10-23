@@ -4,6 +4,7 @@ import {
   syncPayrollsForPeriod,
   updatePayroll,
   finalizePayrollForPeriod,
+  getEmployeeSalarySummary,
 } from "../repository/payroll.repository";
 
 export const getPayrolls = async (req: Request, res: Response) => {
@@ -218,6 +219,46 @@ export const finalizePayrollController = async (req: Request, res: Response) => 
     console.error("Error finalizing payroll:", error);
     return res.status(500).json({
       message: "No se pudo finalizar la planilla para el período especificado.",
+    });
+  }
+};
+
+export const getEmployeeSalarySummaryController = async (req: Request, res: Response) => {
+  try {
+    const employeeId = Number(req.params.employeeId);
+    if (!Number.isInteger(employeeId) || employeeId <= 0) {
+      return res.status(400).json({
+        message: "El identificador del empleado no es válido.",
+      });
+    }
+
+    const year = req.query.year ? Number(req.query.year) : undefined;
+    const month = req.query.month ? Number(req.query.month) : undefined;
+
+    if (year !== undefined && (isNaN(year) || year < 2000)) {
+      return res.status(400).json({
+        message: "El año especificado no es válido.",
+      });
+    }
+
+    if (month !== undefined && (isNaN(month) || month < 1 || month > 12)) {
+      return res.status(400).json({
+        message: "El mes especificado no es válido.",
+      });
+    }
+
+    const summary = await getEmployeeSalarySummary(employeeId, year, month);
+    if (!summary) {
+      return res.status(404).json({
+        message: "Empleado no encontrado.",
+      });
+    }
+
+    return res.json(summary);
+  } catch (error) {
+    console.error("Error getting employee salary summary:", error);
+    return res.status(500).json({
+      message: "Ocurrió un error al obtener el resumen salarial del empleado.",
     });
   }
 };
