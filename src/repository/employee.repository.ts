@@ -18,9 +18,14 @@ export const getAllEmployeesRepository = async () => {
         },
       },
     },
-    orderBy: {
-      id: "asc",
-    },
+    orderBy: [
+      {
+        lastNames: "asc",
+      },
+      {
+        firstNames: "asc",
+      },
+    ],
   });
 };
 
