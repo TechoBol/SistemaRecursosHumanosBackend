@@ -341,7 +341,7 @@ export const syncPayrollsForPeriod = async (year: number, month: number) => {
     const totalDeductions = Number(
       (afpDeduction + absenceDeduction + advanceDeduction).toFixed(2)
     );
-    const netSalary = Number((grossPay - totalDeductions).toFixed(2));
+    const netSalary = Number((grossPay - totalDeductions).toFixed(1));
 
     if (!existingPayroll) {
       await prisma.payroll.create({
@@ -562,7 +562,7 @@ export const updatePayroll = async (
   const totalDeductions = Number(
     (afpDeduction + absenceDeduction + advanceDeduction).toFixed(2)
   );
-  const netSalary = Number((grossPay - totalDeductions).toFixed(2));
+  const netSalary = Number((grossPay - totalDeductions).toFixed(1));
 
   return prisma.payroll.update({
     where: { id },
