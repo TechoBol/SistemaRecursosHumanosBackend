@@ -12,6 +12,39 @@ export const getAdvancesByEmployeeId = async (employeeId: number) => {
   });
 };
 
+export const getAllAdvances = async (year?: number, month?: number) => {
+  let where: any = {};
+  if (year && month) {
+    const startStr = `${year}-${String(month).padStart(2, "0")}-01`;
+    const lastDay = new Date(year, month, 0).getDate();
+    const endStr = `${year}-${String(month).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+    where = {
+      advanceDate: {
+        gte: new Date(`${startStr}T00:00:00.000Z`),
+        lte: new Date(`${endStr}T23:59:59.999Z`),
+      },
+    };
+  }
+
+  return prisma.employeeAdvance.findMany({
+    where,
+    include: {
+      employee: {
+        select: {
+          id: true,
+          firstNames: true,
+          lastNames: true,
+          documentNumber: true,
+          status: true,
+        },
+      },
+    },
+    orderBy: {
+      advanceDate: "desc",
+    },
+  });
+};
+
 export const createAdvance = async (
   employeeId: number,
   data: {
