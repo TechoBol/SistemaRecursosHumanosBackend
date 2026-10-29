@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import {
   createAdvance,
   deleteAdvance,
+  getAllAdvances,
   getAdvancesByEmployeeId,
   updateAdvance,
 } from "../repository/employeeAdvance.repository";
@@ -15,6 +16,40 @@ const TYPE_MAP: Record<string, AdvanceType> = {
 const REVERSE_TYPE_MAP: Record<AdvanceType, string> = {
   [AdvanceType.SALARY]: "salary",
   [AdvanceType.DEBT]: "debt",
+};
+
+export const getAllAdvancesController = async (req: Request, res: Response) => {
+  try {
+    const year = req.query.year ? Number(req.query.year) : undefined;
+    const month = req.query.month ? Number(req.query.month) : undefined;
+
+    if ((year !== undefined && isNaN(year)) || (month !== undefined && isNaN(month))) {
+      return res.status(400).json({
+        message: "Los parámetros de año o mes no son válidos",
+      });
+    }
+
+    const dbAdvances = await getAllAdvances(year, month);
+    const advances = dbAdvances.map((adv) => ({
+      id: adv.id,
+      employeeId: adv.employeeId,
+      employee: adv.employee,
+      type: REVERSE_TYPE_MAP[adv.type] || "salary",
+      amount: Number(adv.amount),
+      date: adv.advanceDate.toISOString().split("T")[0],
+      notes: adv.notes || "",
+      registeredBy: adv.registeredBy,
+      createdAt: adv.createdAt,
+      updatedAt: adv.updatedAt,
+    }));
+
+    return res.json(advances);
+  } catch (error) {
+    console.error("Error getting all advances:", error);
+    return res.status(500).json({
+      message: "No se pudieron obtener los anticipos",
+    });
+  }
 };
 
 export const getAdvances = async (req: Request, res: Response) => {
