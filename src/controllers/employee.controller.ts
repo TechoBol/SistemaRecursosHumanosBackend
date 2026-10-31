@@ -162,6 +162,7 @@ export const updateEmployee = async (req: Request, res: Response) => {
       endDate,
       baseSalary,
       status,
+      contracts,
     } = req.body;
 
     const employeeUpdateData: any = {};
@@ -184,6 +185,25 @@ export const updateEmployee = async (req: Request, res: Response) => {
         });
       }
       employeeUpdateData.documentNumber = trimmedCI;
+    }
+
+    let contractsList: any = undefined;
+    if (contracts && Array.isArray(contracts)) {
+      contractsList = contracts.map((c: any) => ({
+        id: c.id ? Number(c.id) : undefined,
+        contractCompanyId: Number(c.contractCompanyId),
+        contractJobTitleId: c.contractJobTitleId ? Number(c.contractJobTitleId) : undefined,
+        consolidatedCompanyId: Number(c.consolidatedCompanyId),
+        branchId: Number(c.branchId),
+        areaId: Number(c.areaId),
+        jobTitleId: Number(c.jobTitleId),
+        contractType: c.employeeType === "Consultor" || c.contractType === "CONSULTING" ? "CONSULTING" : "INDEFINITE",
+        hireDate: new Date(c.contractDate || c.hireDate),
+        endDate: c.endDate ? new Date(c.endDate) : null,
+        baseSalary: Number(c.baseSalary),
+        status: c.status || (c.endDate ? "ENDED" : "ACTIVE"),
+        isActive: c.isActive !== undefined ? Boolean(c.isActive) : !c.endDate,
+      }));
     }
 
     let contractUpdateData: any = undefined;
@@ -218,7 +238,7 @@ export const updateEmployee = async (req: Request, res: Response) => {
       }
     }
 
-    const updatedEmployee = await updateEmployeeRepository(id, employeeUpdateData, contractUpdateData);
+    const updatedEmployee = await updateEmployeeRepository(id, employeeUpdateData, contractUpdateData, contractsList);
 
     return res.json({
       message: "Empleado actualizado correctamente",

@@ -284,6 +284,7 @@ model EmployeeContract {
   contractJobTitle    JobTitle? @relation("ContractJobTitle", fields: [contractJobTitleId], references: [id], onDelete: Restrict)
 
   terminations Termination[]
+  payrolls     Payroll[]
 
   @@index([employeeId])
   @@index([employeeId, isActive])
@@ -457,6 +458,7 @@ model EmployeeMovement {
 model Payroll {
   id                    Int           @id @default(autoincrement())
   employeeId            Int           @map("employee_id")
+  contractId            Int?          @map("contract_id")
   contractCompanyId     Int           @map("contract_company_id")
   consolidatedCompanyId Int           @map("consolidated_company_id")
   year                  Int           @map("year")
@@ -476,12 +478,14 @@ model Payroll {
   createdAt             DateTime      @default(now()) @map("create_at")
   updatedAt             DateTime      @updatedAt @map("update_at")
 
-  employee            Employee @relation(fields: [employeeId], references: [id], onDelete: Restrict)
-  contractCompany     Company  @relation("PayrollContractCompany", fields: [contractCompanyId], references: [id], onDelete: Restrict)
-  consolidatedCompany Company  @relation("PayrollConsolidatedCompany", fields: [consolidatedCompanyId], references: [id], onDelete: Restrict)
+  employee            Employee          @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  contract            EmployeeContract? @relation(fields: [contractId], references: [id], onDelete: Restrict)
+  contractCompany     Company           @relation("PayrollContractCompany", fields: [contractCompanyId], references: [id], onDelete: Restrict)
+  consolidatedCompany Company           @relation("PayrollConsolidatedCompany", fields: [consolidatedCompanyId], references: [id], onDelete: Restrict)
 
-  @@unique([employeeId, year, month])
+  @@unique([contractId, year, month])
   @@index([employeeId])
+  @@index([contractId])
   @@index([contractCompanyId, year, month])
   @@index([consolidatedCompanyId, year, month])
   @@index([year, month])
