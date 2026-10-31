@@ -33,17 +33,19 @@ export const getPayrolls = async (req: Request, res: Response) => {
       companyType
     );
 
-    let formattedPayrolls = payrolls.map((p) => {
-      const activeContract = p.employee.contracts ? p.employee.contracts[0] : null;
+    let formattedPayrolls = payrolls.map((p: any) => {
+      const activeContract = p.contract || (p.employee.contracts ? p.employee.contracts[0] : null);
       const branchCity = (activeContract?.branch as any)?.city;
       return {
         id: p.id,
         employeeId: p.employeeId,
+        contractId: p.contractId,
         employeeFirstNames: p.employee.firstNames,
         employeeLastNames: p.employee.lastNames,
         employeeName: `${p.employee.lastNames} ${p.employee.firstNames}`.trim(),
         employeeDocumentNumber: p.employee.documentNumber,
         hireDate: activeContract?.hireDate ? activeContract.hireDate.toISOString().split("T")[0] : null,
+        endDate: activeContract?.endDate ? activeContract.endDate.toISOString().split("T")[0] : null,
         employeeType: activeContract?.contractType === "CONSULTING" ? "Consultor" : "Fiscal",
         jobTitleName:
           companyType === "contract"

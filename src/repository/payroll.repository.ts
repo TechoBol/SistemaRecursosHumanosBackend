@@ -92,8 +92,12 @@ function calculateWorkedDays(contract: any, currentDate = getBoliviaDate()): num
 
   const effectiveDate = getEffectiveDate(today, endDate);
 
+  // Si el contrato empezó en el mismo mes evaluado
   if (sameMonth(hireDate, today)) {
-    return clampDays(effectiveDate.getDate() - hireDate.getDate());
+    const endDay = effectiveDate.getDate();
+    const startDay = hireDate.getDate();
+    const days = Math.max(0, Math.min(30, endDay) - startDay + 1);
+    return clampDays(days);
   }
 
   return clampDays(getPayrollDay(effectiveDate));
@@ -191,69 +195,59 @@ export const syncPayrollsForPeriod = async (year: number, month: number) => {
   const startDateOfMonth = new Date(year, month - 1, 1);
   const endDateOfMonth = new Date(year, month, 0, 23, 59, 59);
 
-  const activeContracts = await prisma.employeeContract.findMany({
+  // Buscar todos los contratos que estuvieron vigentes en este mes:
+  // Es decir: hireDate <= finDeMes AND (endDate IS NULL OR endDate >= inicioDeMes)
+  const candidateContracts = await prisma.employeeContract.findMany({
     where: {
-      isActive: true,
-      status: "ACTIVE",
+      hireDate: { lte: endDateOfMonth },
+      OR: [
+        { endDate: null },
+        { endDate: { gte: startDateOfMonth } },
+      ],
     },
     include: {
       employee: true,
     },
+    orderBy: {
+      hireDate: "asc",
+    },
   });
 
-  for (const contract of activeContracts) {
+  for (const contract of candidateContracts) {
     const parsedEndDate = parseDate(contract.endDate);
 
-    // Si la fecha de fin de contrato es anterior al inicio del mes evaluado, el contrato ha finalizado
+    // Si la fecha de fin de contrato es anterior al inicio del mes evaluado, ya finalizó
     if (parsedEndDate && parsedEndDate < startDateOfMonth) {
-      // 1. Marcar contrato como finalizado e inactivo
-      await prisma.employeeContract.update({
-        where: { id: contract.id },
-        data: { isActive: false, status: "ENDED" },
-      });
-
-      // 2. Verificar si el empleado posee algún otro contrato activo
-      const otherActiveContracts = await prisma.employeeContract.findFirst({
-        where: {
-          employeeId: contract.employeeId,
-          id: { not: contract.id },
-          isActive: true,
-          status: "ACTIVE",
-        },
-      });
-
-      // Si no tiene más contratos activos, cambiar estado del empleado a INACTIVE
-      if (!otherActiveContracts) {
-        await prisma.employee.update({
-          where: { id: contract.employeeId },
-          data: { status: "INACTIVE" },
+      if (contract.isActive || contract.status !== "ENDED") {
+        await prisma.employeeContract.update({
+          where: { id: contract.id },
+          data: { isActive: false, status: "ENDED" },
         });
       }
-
-      // 3. Eliminar planilla borrador si existiera para este período posterior a su fin de contrato
-      await prisma.payroll.deleteMany({
-        where: {
-          employeeId: contract.employeeId,
-          year,
-          month,
-          status: "DRAFT",
-        },
-      });
-
       continue;
+    }
+
+    // Si finalizó dentro del mes evaluado o antes de hoy, asegurarse de que quede ENDED e inactivo
+    if (parsedEndDate && parsedEndDate <= now) {
+      if (contract.isActive || contract.status !== "ENDED") {
+        await prisma.employeeContract.update({
+          where: { id: contract.id },
+          data: { isActive: false, status: "ENDED" },
+        });
+      }
     }
 
     const existingPayroll = await prisma.payroll.findUnique({
       where: {
-        employeeId_year_month: {
-          employeeId: contract.employeeId,
+        contractId_year_month: {
+          contractId: contract.id,
           year,
           month,
         },
       },
     });
 
-    // Si la planilla para este empleado ya fue finalizada/cerrada, conservar intactos los valores
+    // Si la planilla para este contrato ya fue finalizada/cerrada, conservar intactos los valores
     if (
       existingPayroll &&
       (existingPayroll.status === "CLOSED" ||
@@ -266,13 +260,26 @@ export const syncPayrollsForPeriod = async (year: number, month: number) => {
     const isFiscal = contract.contractType !== "CONSULTING";
     const baseSalary = Number(contract.baseSalary) || 0;
     const workedDays = calculateWorkedDays(contract, evaluationDate);
+
+    // Si los días trabajados en este mes para este contrato son 0 (por ejemplo aún no inició en el período evaluado), omitir o no crear planilla
+    if (workedDays <= 0 && !existingPayroll) {
+      continue;
+    }
+
     const earnedSalary = Number(((baseSalary / 30) * workedDays).toFixed(2));
 
-    // Bono de antigüedad idéntico a salaryCalculator.js
+    // Bono de antigüedad
     const seniorityBonusRaw = isFiscal
       ? calculateSeniorityBonus(contract, baseSalary, evaluationDate)
       : 0;
     const seniorityBonus = Number(seniorityBonusRaw.toFixed(2));
+
+    // Rango de fechas efectivo de este contrato dentro del mes evaluado para asociar bonos/faltas/anticipos
+    const contractHire = parseDate(contract.hireDate) || startDateOfMonth;
+    const contractEnd = parseDate(contract.endDate);
+
+    const effectiveRangeStart = contractHire > startDateOfMonth ? contractHire : startDateOfMonth;
+    const effectiveRangeEnd = contractEnd && contractEnd < endDateOfMonth ? contractEnd : endDateOfMonth;
 
     // Bonos personalizados (employee_bonuses)
     const activeBonuses = await prisma.employeeBonus.findMany({
@@ -292,13 +299,12 @@ export const syncPayrollsForPeriod = async (year: number, month: number) => {
         employeeId: contract.employeeId,
         type: "BONUS",
         movementDate: {
-          gte: startDateOfMonth,
-          lte: endDateOfMonth,
+          gte: effectiveRangeStart,
+          lte: effectiveRangeEnd,
         },
       },
     });
     const movementsAmount = movements.reduce((acc, m) => acc + Number(m.amount), 0);
-
     const otherBonuses = Number((bonusesAmount + movementsAmount).toFixed(2));
 
     const grossPay = Number(
@@ -310,13 +316,13 @@ export const syncPayrollsForPeriod = async (year: number, month: number) => {
       ? Number((grossPay * GESTORA_RATE).toFixed(2))
       : 0;
 
-    // Descuento Faltas/Incidentes en el mes
+    // Descuento Faltas/Incidentes en el rango de fechas de este contrato
     const incidents = await prisma.attendanceIncident.findMany({
       where: {
         employeeId: contract.employeeId,
         incidentDate: {
-          gte: startDateOfMonth,
-          lte: endDateOfMonth,
+          gte: effectiveRangeStart,
+          lte: effectiveRangeEnd,
         },
       },
     });
@@ -324,13 +330,13 @@ export const syncPayrollsForPeriod = async (year: number, month: number) => {
       incidents.reduce((acc, inc) => acc + Number(inc.discount), 0).toFixed(2)
     );
 
-    // Descuento Anticipos en el mes (TODOS los anticipos registrados en el mes)
+    // Descuento Anticipos en el rango de fechas de este contrato
     const advances = await prisma.employeeAdvance.findMany({
       where: {
         employeeId: contract.employeeId,
         advanceDate: {
-          gte: startDateOfMonth,
-          lte: endDateOfMonth,
+          gte: effectiveRangeStart,
+          lte: effectiveRangeEnd,
         },
       },
     });
@@ -347,6 +353,7 @@ export const syncPayrollsForPeriod = async (year: number, month: number) => {
       await prisma.payroll.create({
         data: {
           employeeId: contract.employeeId,
+          contractId: contract.id,
           contractCompanyId: contract.contractCompanyId,
           consolidatedCompanyId: contract.consolidatedCompanyId,
           year,
@@ -366,10 +373,10 @@ export const syncPayrollsForPeriod = async (year: number, month: number) => {
         },
       });
     } else {
-      // Si ya existe la nómina del mes actual, actualizar con los mismos cálculos exactos y el haber básico del contrato
       await prisma.payroll.update({
         where: { id: existingPayroll.id },
         data: {
+          contractId: contract.id,
           baseSalary: contract.baseSalary,
           contractCompanyId: contract.contractCompanyId,
           consolidatedCompanyId: contract.consolidatedCompanyId,
@@ -450,6 +457,17 @@ export const getPayrollsByPeriodAndCompany = async (
   const rawPayrolls = await prisma.payroll.findMany({
     where: whereClause,
     include: {
+      contract: {
+        include: {
+          jobTitle: true,
+          contractJobTitle: true,
+          branch: {
+            include: {
+              city: true,
+            },
+          },
+        },
+      },
       employee: {
         include: {
           contracts: {
@@ -482,14 +500,17 @@ export const getPayrollsByPeriodAndCompany = async (
           firstNames: "asc",
         },
       },
+      {
+        contractId: "asc",
+      },
     ],
   });
 
   const startDateOfMonth = new Date(year, month - 1, 1);
 
-  // Excluir registros de empleados cuyo contrato terminó antes del inicio del mes solicitado
+  // Excluir registros cuyo contrato terminó antes del inicio del mes solicitado
   return rawPayrolls.filter((p) => {
-    const contract = p.employee.contracts ? p.employee.contracts[0] : null;
+    const contract = p.contract || (p.employee.contracts ? p.employee.contracts[0] : null);
     if (!contract) return true;
     const endDate = parseDate(contract.endDate);
     if (endDate && endDate < startDateOfMonth) {
@@ -512,6 +533,7 @@ export const updatePayroll = async (
   const currentPayroll = await prisma.payroll.findUnique({
     where: { id },
     include: {
+      contract: true,
       employee: {
         include: {
           contracts: {
@@ -528,7 +550,7 @@ export const updatePayroll = async (
     throw new Error("Payroll record not found");
   }
 
-  const activeContract = currentPayroll.employee.contracts[0];
+  const activeContract = currentPayroll.contract || currentPayroll.employee.contracts[0];
   const isFiscal = activeContract ? activeContract.contractType !== "CONSULTING" : true;
 
   const baseSalary = activeContract ? Number(activeContract.baseSalary) : Number(currentPayroll.baseSalary);
@@ -643,16 +665,23 @@ export const getEmployeeSalarySummary = async (
   const isFiscal = activeContract?.contractType !== "CONSULTING";
   const baseSalary = activeContract ? Number(activeContract.baseSalary) : 0;
 
-  // Obtener la nómina calculada y guardada en BD para este empleado y período
-  const payroll = await prisma.payroll.findUnique({
-    where: {
-      employeeId_year_month: {
-        employeeId,
-        year: targetYear,
-        month: targetMonth,
-      },
-    },
-  });
+  // Obtener la nómina calculada y guardada en BD para este empleado y período (para el contrato activo o el más reciente)
+  const payroll = activeContract
+    ? await prisma.payroll.findFirst({
+        where: {
+          contractId: activeContract.id,
+          year: targetYear,
+          month: targetMonth,
+        },
+      })
+    : await prisma.payroll.findFirst({
+        where: {
+          employeeId,
+          year: targetYear,
+          month: targetMonth,
+        },
+        orderBy: { id: "desc" },
+      });
 
   const workedDays = payroll ? Number(payroll.workedDays) : 0;
 
