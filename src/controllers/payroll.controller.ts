@@ -46,7 +46,7 @@ export const getPayrolls = async (req: Request, res: Response) => {
         employeeDocumentNumber: p.employee.documentNumber,
         hireDate: activeContract?.hireDate ? activeContract.hireDate.toISOString().split("T")[0] : null,
         endDate: activeContract?.endDate ? activeContract.endDate.toISOString().split("T")[0] : null,
-        employeeType: activeContract?.contractType === "CONSULTING" ? "Consultor" : "Fiscal",
+        employeeType: activeContract?.contractType === "CONSULTING" ? "Consultor" : activeContract?.contractType === "PROMOTER" ? "Promotor" : "Fiscal",
         jobTitleName:
           companyType === "contract"
             ? activeContract?.contractJobTitle?.name || "Sin cargo"
@@ -81,7 +81,7 @@ export const getPayrolls = async (req: Request, res: Response) => {
 
     if (companyType === "contract") {
       formattedPayrolls = formattedPayrolls.filter(
-        (p) => p.employeeType !== "Consultor"
+        (p) => p.employeeType === "Fiscal"
       );
     }
 
@@ -126,7 +126,7 @@ export const updatePayrollController = async (req: Request, res: Response) => {
         employeeName: `${updated.employee.lastNames} ${updated.employee.firstNames}`.trim(),
         employeeDocumentNumber: updated.employee.documentNumber,
         hireDate: activeContract?.hireDate ? activeContract.hireDate.toISOString().split("T")[0] : null,
-        employeeType: activeContract?.contractType === "CONSULTING" ? "Consultor" : "Fiscal",
+        employeeType: activeContract?.contractType === "CONSULTING" ? "Consultor" : activeContract?.contractType === "PROMOTER" ? "Promotor" : "Fiscal",
         jobTitleName: activeContract?.jobTitle?.name || "Sin cargo",
         contractJobTitleName: activeContract?.contractJobTitle?.name || "Sin cargo",
         branchId: activeContract?.branchId || 0,
