@@ -87,7 +87,7 @@ export const createEmployee = async (req: Request, res: Response) => {
     }
 
     // Mapear Tipo de Contrato
-    const dbContractType = employeeType === "Consultor" ? "CONSULTING" : "INDEFINITE";
+    const dbContractType = employeeType === "Consultor" ? "CONSULTING" : employeeType === "Promotor" ? "PROMOTER" : "INDEFINITE";
 
     const employeeData = {
       firstNames: String(firstName).trim(),
@@ -197,7 +197,7 @@ export const updateEmployee = async (req: Request, res: Response) => {
         branchId: Number(c.branchId),
         areaId: Number(c.areaId),
         jobTitleId: Number(c.jobTitleId),
-        contractType: c.employeeType === "Consultor" || c.contractType === "CONSULTING" ? "CONSULTING" : "INDEFINITE",
+        contractType: c.employeeType === "Consultor" || c.contractType === "CONSULTING" ? "CONSULTING" : c.employeeType === "Promotor" || c.contractType === "PROMOTER" ? "PROMOTER" : "INDEFINITE",
         hireDate: new Date(c.contractDate || c.hireDate),
         endDate: c.endDate ? new Date(c.endDate) : null,
         baseSalary: Number(c.baseSalary),
@@ -228,7 +228,7 @@ export const updateEmployee = async (req: Request, res: Response) => {
       if (areaId !== undefined) contractUpdateData.areaId = Number(areaId);
       if (jobTitleId !== undefined) contractUpdateData.jobTitleId = Number(jobTitleId);
       if (employeeType !== undefined) {
-        contractUpdateData.contractType = employeeType === "Consultor" ? "CONSULTING" : "INDEFINITE";
+        contractUpdateData.contractType = employeeType === "Consultor" ? "CONSULTING" : employeeType === "Promotor" ? "PROMOTER" : "INDEFINITE";
       }
       if (contractDate !== undefined) contractUpdateData.hireDate = new Date(contractDate);
       if (endDate !== undefined) contractUpdateData.endDate = endDate ? new Date(endDate) : null;

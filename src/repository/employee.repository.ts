@@ -76,7 +76,7 @@ export const createEmployeeRepository = async (
     branchId: number;
     areaId: number;
     jobTitleId: number;
-    contractType: "INDEFINITE" | "CONSULTING";
+    contractType: "INDEFINITE" | "CONSULTING" | "PROMOTER";
     hireDate: Date;
     endDate?: Date | null;
     baseSalary: number;
@@ -144,7 +144,7 @@ export const updateEmployeeRepository = async (
     branchId?: number;
     areaId?: number;
     jobTitleId?: number;
-    contractType?: "INDEFINITE" | "CONSULTING";
+    contractType?: "INDEFINITE" | "CONSULTING" | "PROMOTER";
     hireDate?: Date;
     endDate?: Date | null;
     baseSalary?: number;
@@ -159,7 +159,7 @@ export const updateEmployeeRepository = async (
     branchId: number;
     areaId: number;
     jobTitleId: number;
-    contractType: "INDEFINITE" | "CONSULTING";
+    contractType: "INDEFINITE" | "CONSULTING" | "PROMOTER";
     hireDate: Date;
     endDate?: Date | null;
     baseSalary: number;

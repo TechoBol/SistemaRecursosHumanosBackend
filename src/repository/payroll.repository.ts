@@ -257,7 +257,7 @@ export const syncPayrollsForPeriod = async (year: number, month: number) => {
       continue;
     }
 
-    const isFiscal = contract.contractType !== "CONSULTING";
+    const isFiscal = contract.contractType === "INDEFINITE";
     const baseSalary = Number(contract.baseSalary) || 0;
     const workedDays = calculateWorkedDays(contract, evaluationDate);
 
@@ -446,7 +446,7 @@ export const getPayrollsByPeriodAndCompany = async (
     whereClause.employee = {
       contracts: {
         some: {
-          contractType: { not: "CONSULTING" },
+          contractType: "INDEFINITE",
         },
       },
     };
@@ -551,7 +551,7 @@ export const updatePayroll = async (
   }
 
   const activeContract = currentPayroll.contract || currentPayroll.employee.contracts[0];
-  const isFiscal = activeContract ? activeContract.contractType !== "CONSULTING" : true;
+  const isFiscal = activeContract ? activeContract.contractType === "INDEFINITE" : true;
 
   const baseSalary = activeContract ? Number(activeContract.baseSalary) : Number(currentPayroll.baseSalary);
   const workedDays =
@@ -662,7 +662,7 @@ export const getEmployeeSalarySummary = async (
   }
 
   const activeContract = employee.contracts?.find((c) => c.isActive) || employee.contracts?.[0] || null;
-  const isFiscal = activeContract?.contractType !== "CONSULTING";
+  const isFiscal = activeContract?.contractType === "INDEFINITE";
   const baseSalary = activeContract ? Number(activeContract.baseSalary) : 0;
 
   // Obtener la nómina calculada y guardada en BD para este empleado y período (para el contrato activo o el más reciente)
