@@ -273,12 +273,12 @@ export const deleteEmployee = async (req: Request, res: Response) => {
     await deleteEmployeeRepository(id);
 
     return res.json({
-      message: "Empleado desactivado correctamente",
+      message: "Empleado eliminado permanentemente del sistema",
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error deleting employee:", error);
-    return res.status(500).json({
-      message: "No se pudo desactivar el empleado",
+    return res.status(400).json({
+      message: error?.message || "No se pudo eliminar al empleado",
     });
   }
 };

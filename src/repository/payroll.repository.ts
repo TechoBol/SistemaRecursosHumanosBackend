@@ -510,6 +510,20 @@ export const getPayrollsByPeriodAndCompany = async (
 
   // Excluir registros cuyo contrato terminó antes del inicio del mes solicitado
   return rawPayrolls.filter((p) => {
+    // Excluir específicamente a RAMIRO LIMA HUARACHI en las planillas consolidadas
+    if (companyType === "consolidated") {
+      const doc = p.employee?.documentNumber || "";
+      const last = (p.employee?.lastNames || "").toUpperCase();
+      const first = (p.employee?.firstNames || "").toUpperCase();
+      if (
+        p.employeeId === 126 ||
+        doc === "3538458" ||
+        (last.includes("LIMA HUARACHI") && first.includes("RAMIRO"))
+      ) {
+        return false;
+      }
+    }
+
     const contract = p.contract || (p.employee.contracts ? p.employee.contracts[0] : null);
     if (!contract) return true;
     const endDate = parseDate(contract.endDate);

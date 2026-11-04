@@ -273,22 +273,72 @@ export const updateEmployeeRepository = async (
 
 export const deleteEmployeeRepository = async (id: number) => {
   return prisma.$transaction(async (tx) => {
-    await tx.employee.update({
-      where: { id },
-      data: {
-        status: "INACTIVE",
+    // 1. Verificar si tiene planillas cerradas, pagadas o aprobadas
+    const closedPayrolls = await tx.payroll.findMany({
+      where: {
+        employeeId: id,
+        status: {
+          in: ["CLOSED", "PAID", "APPROVED"],
+        },
       },
     });
 
-    await tx.employeeContract.updateMany({
-      where: {
-        employeeId: id,
-        isActive: true,
-      },
-      data: {
-        isActive: false,
-        status: "ENDED",
-      },
+    if (closedPayrolls.length > 0) {
+      throw new Error(
+        "No se puede eliminar el empleado porque cuenta con planillas de sueldo finalizadas o cerradas."
+      );
+    }
+
+    // 2. Eliminar planillas no cerradas (borradores o generadas)
+    await tx.payroll.deleteMany({
+      where: { employeeId: id },
+    });
+
+    // 3. Eliminar registros vinculados al empleado
+    await tx.attendanceIncident.deleteMany({
+      where: { employeeId: id },
+    });
+
+    await tx.employeeAdvance.deleteMany({
+      where: { employeeId: id },
+    });
+
+    await tx.employeeBonus.deleteMany({
+      where: { employeeId: id },
+    });
+
+    await tx.employeeMovement.deleteMany({
+      where: { employeeId: id },
+    });
+
+    await tx.vacation.deleteMany({
+      where: { employeeId: id },
+    });
+
+    await tx.memorandum.deleteMany({
+      where: { employeeId: id },
+    });
+
+    await tx.employeeDocument.deleteMany({
+      where: { employeeId: id },
+    });
+
+    await tx.emergencyContact.deleteMany({
+      where: { employeeId: id },
+    });
+
+    await tx.termination.deleteMany({
+      where: { employeeId: id },
+    });
+
+    // 4. Eliminar contratos del empleado
+    await tx.employeeContract.deleteMany({
+      where: { employeeId: id },
+    });
+
+    // 5. Eliminar físicamente al empleado
+    await tx.employee.delete({
+      where: { id },
     });
 
     return true;
