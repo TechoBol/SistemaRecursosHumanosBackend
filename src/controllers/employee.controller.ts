@@ -201,8 +201,8 @@ export const updateEmployee = async (req: Request, res: Response) => {
         hireDate: new Date(c.contractDate || c.hireDate),
         endDate: c.endDate ? new Date(c.endDate) : null,
         baseSalary: Number(c.baseSalary),
-        status: c.status || (c.endDate ? "ENDED" : "ACTIVE"),
-        isActive: c.isActive !== undefined ? Boolean(c.isActive) : !c.endDate,
+        status: c.status ? (c.status === "ACTIVE" ? "ACTIVE" : "ENDED") : (c.isActive !== undefined ? (c.isActive ? "ACTIVE" : "ENDED") : (c.endDate ? "ENDED" : "ACTIVE")),
+        isActive: c.isActive !== undefined ? Boolean(c.isActive) : (c.status === "ACTIVE" ? true : !c.endDate),
       }));
     }
 
