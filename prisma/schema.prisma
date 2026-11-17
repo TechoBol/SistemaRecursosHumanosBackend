@@ -114,7 +114,8 @@ model City {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  branches Branch[]
+  branches  Branch[]
+  contracts EmployeeContract[]
 
   @@map("cities")
 }
@@ -263,6 +264,7 @@ model EmployeeContract {
   employeeId            Int            @map("employee_id")
   contractCompanyId     Int            @map("contract_company_id")
   contractJobTitleId    Int?           @map("contract_job_title_id")
+  cityId                Int?           @map("city_id")
   consolidatedCompanyId Int            @map("consolidated_company_id")
   branchId              Int            @map("branch_id")
   areaId                Int            @map("area_id")
@@ -279,6 +281,7 @@ model EmployeeContract {
   employee            Employee  @relation(fields: [employeeId], references: [id], onDelete: Restrict)
   contractCompany     Company   @relation("ContractCompany", fields: [contractCompanyId], references: [id], onDelete: Restrict)
   consolidatedCompany Company   @relation("ConsolidatedCompany", fields: [consolidatedCompanyId], references: [id], onDelete: Restrict)
+  city                City?     @relation(fields: [cityId], references: [id], onDelete: Restrict)
   branch              Branch    @relation(fields: [branchId], references: [id], onDelete: Restrict)
   area                Area      @relation(fields: [areaId], references: [id], onDelete: Restrict)
   jobTitle            JobTitle  @relation("ActualJobTitle", fields: [jobTitleId], references: [id], onDelete: Restrict)
@@ -291,6 +294,7 @@ model EmployeeContract {
   @@index([employeeId, isActive])
   @@index([contractCompanyId])
   @@index([contractJobTitleId])
+  @@index([cityId])
   @@index([consolidatedCompanyId])
   @@index([branchId])
   @@index([areaId])

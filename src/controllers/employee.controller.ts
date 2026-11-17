@@ -59,6 +59,7 @@ export const createEmployee = async (req: Request, res: Response) => {
       address,
       contractCompanyId,
       contractJobTitleId,
+      cityId,
       consolidatedCompanyId,
       employeeType,
       branchId,
@@ -103,6 +104,7 @@ export const createEmployee = async (req: Request, res: Response) => {
     const contractData = {
       contractCompanyId: Number(contractCompanyId),
       contractJobTitleId: Number(contractJobTitleId),
+      cityId: cityId ? Number(cityId) : null,
       consolidatedCompanyId: Number(consolidatedCompanyId),
       branchId: Number(branchId),
       areaId: Number(areaId),
@@ -153,6 +155,7 @@ export const updateEmployee = async (req: Request, res: Response) => {
       address,
       contractCompanyId,
       contractJobTitleId,
+      cityId,
       consolidatedCompanyId,
       employeeType,
       branchId,
@@ -193,6 +196,7 @@ export const updateEmployee = async (req: Request, res: Response) => {
         id: c.id ? Number(c.id) : undefined,
         contractCompanyId: Number(c.contractCompanyId),
         contractJobTitleId: c.contractJobTitleId ? Number(c.contractJobTitleId) : undefined,
+        cityId: c.cityId ? Number(c.cityId) : null,
         consolidatedCompanyId: Number(c.consolidatedCompanyId),
         branchId: Number(c.branchId),
         areaId: Number(c.areaId),
@@ -210,6 +214,7 @@ export const updateEmployee = async (req: Request, res: Response) => {
     if (
       contractCompanyId !== undefined ||
       contractJobTitleId !== undefined ||
+      cityId !== undefined ||
       consolidatedCompanyId !== undefined ||
       branchId !== undefined ||
       areaId !== undefined ||
@@ -223,6 +228,7 @@ export const updateEmployee = async (req: Request, res: Response) => {
       contractUpdateData = {};
       if (contractCompanyId !== undefined) contractUpdateData.contractCompanyId = Number(contractCompanyId);
       if (contractJobTitleId !== undefined) contractUpdateData.contractJobTitleId = Number(contractJobTitleId);
+      if (cityId !== undefined) contractUpdateData.cityId = cityId ? Number(cityId) : null;
       if (consolidatedCompanyId !== undefined) contractUpdateData.consolidatedCompanyId = Number(consolidatedCompanyId);
       if (branchId !== undefined) contractUpdateData.branchId = Number(branchId);
       if (areaId !== undefined) contractUpdateData.areaId = Number(areaId);
