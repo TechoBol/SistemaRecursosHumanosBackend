@@ -72,6 +72,7 @@ export const createEmployeeRepository = async (
   contractData: {
     contractCompanyId: number;
     contractJobTitleId: number;
+    cityId?: number | null;
     consolidatedCompanyId: number;
     branchId: number;
     areaId: number;
@@ -92,6 +93,7 @@ export const createEmployeeRepository = async (
         employeeId: employee.id,
         contractCompanyId: contractData.contractCompanyId,
         contractJobTitleId: contractData.contractJobTitleId,
+        cityId: contractData.cityId || null,
         consolidatedCompanyId: contractData.consolidatedCompanyId,
         branchId: contractData.branchId,
         areaId: contractData.areaId,
@@ -111,6 +113,7 @@ export const createEmployeeRepository = async (
         contracts: {
           where: { isActive: true },
           include: {
+            city: true,
             branch: true,
             area: true,
             jobTitle: true,
@@ -140,6 +143,7 @@ export const updateEmployeeRepository = async (
     id?: number;
     contractCompanyId?: number;
     contractJobTitleId?: number;
+    cityId?: number | null;
     consolidatedCompanyId?: number;
     branchId?: number;
     areaId?: number;
@@ -155,6 +159,7 @@ export const updateEmployeeRepository = async (
     id?: number;
     contractCompanyId: number;
     contractJobTitleId?: number;
+    cityId?: number | null;
     consolidatedCompanyId: number;
     branchId: number;
     areaId: number;
@@ -182,6 +187,7 @@ export const updateEmployeeRepository = async (
             data: {
               contractCompanyId: c.contractCompanyId,
               contractJobTitleId: c.contractJobTitleId || null,
+              cityId: c.cityId ? c.cityId : null,
               consolidatedCompanyId: c.consolidatedCompanyId,
               branchId: c.branchId,
               areaId: c.areaId,
@@ -201,6 +207,7 @@ export const updateEmployeeRepository = async (
               employeeId: id,
               contractCompanyId: c.contractCompanyId,
               contractJobTitleId: c.contractJobTitleId || null,
+              cityId: c.cityId ? c.cityId : null,
               consolidatedCompanyId: c.consolidatedCompanyId,
               branchId: c.branchId,
               areaId: c.areaId,
@@ -234,6 +241,7 @@ export const updateEmployeeRepository = async (
             employeeId: id,
             contractCompanyId: contractData.contractCompanyId || 1,
             contractJobTitleId: contractData.contractJobTitleId || 1,
+            cityId: contractData.cityId || null,
             consolidatedCompanyId: contractData.consolidatedCompanyId || 1,
             branchId: contractData.branchId || 1,
             areaId: contractData.areaId || 1,
