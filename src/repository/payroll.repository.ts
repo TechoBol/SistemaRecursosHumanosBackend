@@ -459,6 +459,7 @@ export const getPayrollsByPeriodAndCompany = async (
     include: {
       contract: {
         include: {
+          city: true,
           jobTitle: true,
           contractJobTitle: true,
           branch: {
@@ -475,6 +476,7 @@ export const getPayrollsByPeriodAndCompany = async (
               createdAt: "desc",
             },
             include: {
+              city: true,
               jobTitle: true,
               contractJobTitle: true,
               branch: {
@@ -621,6 +623,7 @@ export const updatePayroll = async (
           contracts: {
             where: { isActive: true },
             include: {
+              city: true,
               jobTitle: true,
               contractJobTitle: true,
               branch: {
@@ -660,6 +663,7 @@ export const getEmployeeSalarySummary = async (
           { id: "desc" },
         ],
         include: {
+          city: true,
           branch: { include: { city: true } },
           area: true,
           jobTitle: true,

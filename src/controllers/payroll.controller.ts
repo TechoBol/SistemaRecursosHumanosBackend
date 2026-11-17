@@ -35,7 +35,7 @@ export const getPayrolls = async (req: Request, res: Response) => {
 
     let formattedPayrolls = payrolls.map((p: any) => {
       const activeContract = p.contract || (p.employee.contracts ? p.employee.contracts[0] : null);
-      const branchCity = (activeContract?.branch as any)?.city;
+      const contractCity = (activeContract as any)?.city;
       return {
         id: p.id,
         employeeId: p.employeeId,
@@ -54,8 +54,8 @@ export const getPayrolls = async (req: Request, res: Response) => {
         contractJobTitleName: activeContract?.contractJobTitle?.name || "Sin cargo",
         branchId: activeContract?.branchId || 0,
         branchName: activeContract?.branch?.name || "Sin Sucursal",
-        cityId: activeContract?.branch?.cityId || branchCity?.id || 0,
-        cityName: branchCity?.name || "Sin Ciudad",
+        cityId: activeContract?.cityId || contractCity?.id || 0,
+        cityName: contractCity?.name || "Sin Ciudad",
         contractCompanyId: p.contractCompanyId,
         contractCompanyName: p.contractCompany.name,
         consolidatedCompanyId: p.consolidatedCompanyId,
@@ -114,7 +114,7 @@ export const updatePayrollController = async (req: Request, res: Response) => {
 
     const updated = await updatePayroll(id, updateData);
     const activeContract = updated.employee.contracts ? updated.employee.contracts[0] : null;
-    const branchCity = (activeContract?.branch as any)?.city;
+    const contractCity = (activeContract as any)?.city;
 
     return res.json({
       message: "Nómina actualizada correctamente",
@@ -131,8 +131,8 @@ export const updatePayrollController = async (req: Request, res: Response) => {
         contractJobTitleName: activeContract?.contractJobTitle?.name || "Sin cargo",
         branchId: activeContract?.branchId || 0,
         branchName: activeContract?.branch?.name || "Sin Sucursal",
-        cityId: activeContract?.branch?.cityId || branchCity?.id || 0,
-        cityName: branchCity?.name || "Sin Ciudad",
+        cityId: activeContract?.cityId || contractCity?.id || 0,
+        cityName: contractCity?.name || "Sin Ciudad",
         contractCompanyId: updated.contractCompanyId,
         contractCompanyName: updated.contractCompany.name,
         consolidatedCompanyId: updated.consolidatedCompanyId,
