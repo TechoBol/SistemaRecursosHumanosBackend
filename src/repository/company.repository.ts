@@ -5,6 +5,14 @@ export const getAllCompaniesRepository = async () => {
     where: {
       isActive: true,
     },
+    include: {
+      healthInsurances: {
+        include: {
+          city: true,
+        },
+      },
+      phones: true,
+    },
     orderBy: {
       name: "asc",
     },
@@ -15,6 +23,14 @@ export const getCompanyByIdRepository = async (id: number) => {
   return prisma.company.findUnique({
     where: {
       id,
+    },
+    include: {
+      healthInsurances: {
+        include: {
+          city: true,
+        },
+      },
+      phones: true,
     },
   });
 };

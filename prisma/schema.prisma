@@ -94,17 +94,35 @@ model Company {
   name      String   @unique @db.VarChar(120)
   legalName String?  @map("legal_name") @db.VarChar(180)
   taxId     String?  @unique @map("tax_id") @db.VarChar(30)
+  roeNumber String?  @map("roe_number") @db.VarChar(50)
+  address   String?  @db.VarChar(255)
+  email     String?  @db.VarChar(120)
   isActive  Boolean  @default(true) @map("is_active")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
   branches                      CompanyBranch[]
-  contractualEmployeeContracts  EmployeeContract[] @relation("ContractCompany")
-  consolidatedEmployeeContracts EmployeeContract[] @relation("ConsolidatedCompany")
-  contractualPayrolls           Payroll[]          @relation("PayrollContractCompany")
-  consolidatedPayrolls          Payroll[]          @relation("PayrollConsolidatedCompany")
+  contractualEmployeeContracts  EmployeeContract[]       @relation("ContractCompany")
+  consolidatedEmployeeContracts EmployeeContract[]       @relation("ConsolidatedCompany")
+  contractualPayrolls           Payroll[]                @relation("PayrollContractCompany")
+  consolidatedPayrolls          Payroll[]                @relation("PayrollConsolidatedCompany")
+  healthInsurances              CompanyHealthInsurance[]
+  phones                        CompanyPhone[]
 
   @@map("companies")
+}
+
+model CompanyPhone {
+  id        Int      @id @default(autoincrement())
+  companyId Int      @map("company_id")
+  phone     String   @db.VarChar(50)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@map("company_phones")
 }
 
 model City {
@@ -114,10 +132,28 @@ model City {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  branches  Branch[]
-  contracts EmployeeContract[]
+  branches         Branch[]
+  contracts        EmployeeContract[]
+  healthInsurances CompanyHealthInsurance[]
 
   @@map("cities")
+}
+
+model CompanyHealthInsurance {
+  id             Int      @id @default(autoincrement())
+  companyId      Int      @map("company_id")
+  cityId         Int      @map("city_id")
+  employerNumber String   @map("employer_number") @db.VarChar(50)
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  city    City    @relation(fields: [cityId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, cityId])
+  @@index([companyId])
+  @@index([cityId])
+  @@map("company_health_insurances")
 }
 
 model Branch {
