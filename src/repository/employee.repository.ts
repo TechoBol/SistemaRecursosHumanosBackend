@@ -63,6 +63,9 @@ export const createEmployeeRepository = async (
     firstNames: string;
     lastNames: string;
     documentNumber: string;
+    ciExtension?: string | null;
+    nationality?: string | null;
+    gender?: string | null;
     birthDate?: Date | null;
     phone?: string | null;
     email?: string | null;
@@ -133,6 +136,9 @@ export const updateEmployeeRepository = async (
     firstNames?: string;
     lastNames?: string;
     documentNumber?: string;
+    ciExtension?: string | null;
+    nationality?: string | null;
+    gender?: string | null;
     birthDate?: Date | null;
     phone?: string | null;
     email?: string | null;
