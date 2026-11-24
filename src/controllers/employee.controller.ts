@@ -53,6 +53,9 @@ export const createEmployee = async (req: Request, res: Response) => {
       firstName,
       lastName,
       ci,
+      ciExtension,
+      nationality,
+      gender,
       birthDate,
       email,
       phone,
@@ -94,6 +97,9 @@ export const createEmployee = async (req: Request, res: Response) => {
       firstNames: String(firstName).trim(),
       lastNames: String(lastName).trim(),
       documentNumber: trimmedCI,
+      ciExtension: ciExtension !== undefined && ciExtension !== null && String(ciExtension).trim() !== "" ? String(ciExtension).trim() : null,
+      nationality: nationality !== undefined && nationality !== null && String(nationality).trim() !== "" ? String(nationality).trim() : null,
+      gender: gender !== undefined && gender !== null && String(gender).trim() !== "" ? String(gender).trim() : null,
       birthDate: birthDate ? new Date(birthDate) : null,
       phone: phone ? String(phone).trim() : null,
       email: email ? String(email).trim() : null,
@@ -149,6 +155,9 @@ export const updateEmployee = async (req: Request, res: Response) => {
       firstName,
       lastName,
       ci,
+      ciExtension,
+      nationality,
+      gender,
       birthDate,
       email,
       phone,
@@ -171,6 +180,9 @@ export const updateEmployee = async (req: Request, res: Response) => {
     const employeeUpdateData: any = {};
     if (firstName !== undefined) employeeUpdateData.firstNames = String(firstName).trim();
     if (lastName !== undefined) employeeUpdateData.lastNames = String(lastName).trim();
+    if (ciExtension !== undefined) employeeUpdateData.ciExtension = ciExtension && String(ciExtension).trim() !== "" ? String(ciExtension).trim() : null;
+    if (nationality !== undefined) employeeUpdateData.nationality = nationality && String(nationality).trim() !== "" ? String(nationality).trim() : null;
+    if (gender !== undefined) employeeUpdateData.gender = gender && String(gender).trim() !== "" ? String(gender).trim() : null;
     if (birthDate !== undefined) employeeUpdateData.birthDate = birthDate ? new Date(birthDate) : null;
     if (email !== undefined) employeeUpdateData.email = email ? String(email).trim() : null;
     if (phone !== undefined) employeeUpdateData.phone = phone ? String(phone).trim() : null;
