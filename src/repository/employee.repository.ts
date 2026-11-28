@@ -186,7 +186,17 @@ export const updateEmployeeRepository = async (
 
     // Si se envía una lista completa de contratos (desde el nuevo modal con múltiples contratos)
     if (contractsList && Array.isArray(contractsList) && contractsList.length > 0) {
+      const now = new Date();
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
       for (const c of contractsList) {
+        const isPast = c.endDate && new Date(c.endDate) < todayStart;
+        const defaultStatus = isPast ? "ENDED" : "ACTIVE";
+        const defaultIsActive = !isPast;
+
+        const finalStatus = c.status || defaultStatus;
+        const finalIsActive = c.isActive !== undefined ? c.isActive : defaultIsActive;
+
         if (c.id) {
           await tx.employeeContract.update({
             where: { id: c.id },
@@ -202,8 +212,8 @@ export const updateEmployeeRepository = async (
               hireDate: c.hireDate,
               endDate: c.endDate,
               baseSalary: c.baseSalary,
-              status: c.status || (c.endDate ? "ENDED" : "ACTIVE"),
-              isActive: c.isActive !== undefined ? c.isActive : !c.endDate,
+              status: finalStatus,
+              isActive: finalIsActive,
             },
           });
         } else {
@@ -222,8 +232,8 @@ export const updateEmployeeRepository = async (
               hireDate: c.hireDate,
               endDate: c.endDate,
               baseSalary: c.baseSalary,
-              status: c.status || (c.endDate ? "ENDED" : "ACTIVE"),
-              isActive: c.isActive !== undefined ? c.isActive : !c.endDate,
+              status: finalStatus,
+              isActive: finalIsActive,
             },
           });
         }

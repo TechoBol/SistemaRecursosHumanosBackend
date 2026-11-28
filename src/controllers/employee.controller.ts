@@ -204,22 +204,42 @@ export const updateEmployee = async (req: Request, res: Response) => {
 
     let contractsList: any = undefined;
     if (contracts && Array.isArray(contracts)) {
-      contractsList = contracts.map((c: any) => ({
-        id: c.id ? Number(c.id) : undefined,
-        contractCompanyId: Number(c.contractCompanyId),
-        contractJobTitleId: c.contractJobTitleId ? Number(c.contractJobTitleId) : undefined,
-        cityId: c.cityId ? Number(c.cityId) : null,
-        consolidatedCompanyId: Number(c.consolidatedCompanyId),
-        branchId: Number(c.branchId),
-        areaId: Number(c.areaId),
-        jobTitleId: Number(c.jobTitleId),
-        contractType: c.employeeType === "Consultor" || c.contractType === "CONSULTING" ? "CONSULTING" : c.employeeType === "Promotor" || c.contractType === "PROMOTER" ? "PROMOTER" : "INDEFINITE",
-        hireDate: new Date(c.contractDate || c.hireDate),
-        endDate: c.endDate ? new Date(c.endDate) : null,
-        baseSalary: Number(c.baseSalary),
-        status: c.status ? (c.status === "ACTIVE" ? "ACTIVE" : "ENDED") : (c.isActive !== undefined ? (c.isActive ? "ACTIVE" : "ENDED") : (c.endDate ? "ENDED" : "ACTIVE")),
-        isActive: c.isActive !== undefined ? Boolean(c.isActive) : (c.status === "ACTIVE" ? true : !c.endDate),
-      }));
+      const now = new Date();
+      contractsList = contracts.map((c: any) => {
+        const hireDate = new Date(c.contractDate || c.hireDate);
+        const endDate = c.endDate ? new Date(c.endDate) : null;
+
+        let isActive = true;
+        let status: "ACTIVE" | "ENDED" | "CANCELLED" = "ACTIVE";
+
+        if (c.status === "CANCELLED") {
+          status = "CANCELLED";
+          isActive = false;
+        } else if (endDate && endDate < new Date(now.getFullYear(), now.getMonth(), now.getDate())) {
+          status = "ENDED";
+          isActive = false;
+        } else {
+          status = "ACTIVE";
+          isActive = true;
+        }
+
+        return {
+          id: c.id ? Number(c.id) : undefined,
+          contractCompanyId: Number(c.contractCompanyId),
+          contractJobTitleId: c.contractJobTitleId ? Number(c.contractJobTitleId) : undefined,
+          cityId: c.cityId ? Number(c.cityId) : null,
+          consolidatedCompanyId: Number(c.consolidatedCompanyId),
+          branchId: Number(c.branchId),
+          areaId: Number(c.areaId),
+          jobTitleId: Number(c.jobTitleId),
+          contractType: c.employeeType === "Consultor" || c.contractType === "CONSULTING" ? "CONSULTING" : c.employeeType === "Promotor" || c.contractType === "PROMOTER" ? "PROMOTER" : "INDEFINITE",
+          hireDate,
+          endDate,
+          baseSalary: Number(c.baseSalary),
+          status,
+          isActive,
+        };
+      });
     }
 
     let contractUpdateData: any = undefined;
