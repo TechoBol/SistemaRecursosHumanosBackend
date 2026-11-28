@@ -94,13 +94,21 @@ export async function getChristmasBonusesRepository(companyId: number, year: num
       isFinalized: true,
       data: existingFinalized.map((item) => {
         const c = item.contract || (item.employee.contracts ? item.employee.contracts[0] : null);
+        const contractCity = c?.city || c?.branch?.city;
         return {
           id: item.id,
           employeeId: item.employeeId,
           contractId: item.contractId,
+          employeeFirstNames: item.employee.firstNames,
+          employeeLastNames: item.employee.lastNames,
           employeeName: `${item.employee.lastNames} ${item.employee.firstNames}`.trim(),
           employeeDocumentNumber: item.employee.documentNumber,
           employeeCiExtension: item.employee.ciExtension,
+          employeeNationality: item.employee.nationality || "BOLIVIANA",
+          employeeBirthDate: item.employee.birthDate ? item.employee.birthDate.toISOString().split("T")[0] : null,
+          employeeGender: item.employee.gender || null,
+          cityId: c?.cityId || contractCity?.id || 0,
+          cityName: contractCity?.name || "Sin Ciudad",
           contractJobTitleName: c?.contractJobTitle?.name || c?.jobTitle?.name || "Sin cargo",
           hireDate: c?.hireDate ? c.hireDate.toISOString().split("T")[0] : null,
           employeeType: "Fiscal",
@@ -212,15 +220,24 @@ export async function getChristmasBonusesRepository(companyId: number, year: num
     // =========================================================================
     const bonusMonths = (averageGrossPay / 12) * workedMonths;
     const bonusDays = (averageGrossPay / 360) * workedDays;
-    const christmasBonusAmount = Number((bonusMonths + bonusDays).toFixed(2));
+    const christmasBonusAmount = Number((bonusMonths + bonusDays).toFixed(1));
+
+    const contractCity = contract.city || contract.branch?.city;
 
     return {
       id: contract.id,
       employeeId: emp.id,
       contractId: contract.id,
+      employeeFirstNames: emp.firstNames,
+      employeeLastNames: emp.lastNames,
       employeeName: `${emp.lastNames} ${emp.firstNames}`.trim(),
       employeeDocumentNumber: emp.documentNumber,
       employeeCiExtension: emp.ciExtension,
+      employeeNationality: emp.nationality || "BOLIVIANA",
+      employeeBirthDate: emp.birthDate ? emp.birthDate.toISOString().split("T")[0] : null,
+      employeeGender: emp.gender || null,
+      cityId: contract.cityId || contractCity?.id || 0,
+      cityName: contractCity?.name || "Sin Ciudad",
       contractJobTitleName: contract.contractJobTitle?.name || contract.jobTitle?.name || "Sin cargo",
       hireDate: contract.hireDate ? contract.hireDate.toISOString().split("T")[0] : null,
       employeeType: "Fiscal",
