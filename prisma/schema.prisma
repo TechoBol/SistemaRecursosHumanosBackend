@@ -106,6 +106,7 @@ model Company {
   consolidatedEmployeeContracts EmployeeContract[]       @relation("ConsolidatedCompany")
   contractualPayrolls           Payroll[]                @relation("PayrollContractCompany")
   consolidatedPayrolls          Payroll[]                @relation("PayrollConsolidatedCompany")
+  christmasBonuses              ChristmasBonus[]         @relation("ChristmasBonusCompany")
   healthInsurances              CompanyHealthInsurance[]
   phones                        CompanyPhone[]
 
@@ -292,6 +293,7 @@ model Employee {
   bonuses           EmployeeBonus[]
   movements         EmployeeMovement[]
   payrolls          Payroll[]
+  christmasBonuses  ChristmasBonus[]
   terminations      Termination[]
 
   @@index([status])
@@ -326,8 +328,9 @@ model EmployeeContract {
   jobTitle            JobTitle  @relation("ActualJobTitle", fields: [jobTitleId], references: [id], onDelete: Restrict)
   contractJobTitle    JobTitle? @relation("ContractJobTitle", fields: [contractJobTitleId], references: [id], onDelete: Restrict)
 
-  terminations Termination[]
-  payrolls     Payroll[]
+  terminations     Termination[]
+  payrolls         Payroll[]
+  christmasBonuses ChristmasBonus[]
 
   @@index([employeeId])
   @@index([employeeId, isActive])
@@ -558,4 +561,33 @@ model Termination {
   @@index([contractId])
   @@index([registeredByUserId])
   @@map("terminations")
+}
+
+model ChristmasBonus {
+  id                   Int           @id @default(autoincrement())
+  employeeId           Int           @map("employee_id")
+  contractId           Int?          @map("contract_id")
+  companyId            Int           @map("company_id")
+  year                 Int           @map("year")
+  averageBaseSalary    Decimal       @map("average_base_salary") @db.Decimal(12, 2)
+  averageSeniorityBonus Decimal      @map("average_seniority_bonus") @db.Decimal(12, 2)
+  averageOtherBonuses  Decimal       @map("average_other_bonuses") @db.Decimal(12, 2)
+  averageGrossPay      Decimal       @map("average_gross_pay") @db.Decimal(12, 2)
+  workedMonths         Int           @map("worked_months")
+  workedDays           Int           @map("worked_days")
+  bonusAmount          Decimal       @map("bonus_amount") @db.Decimal(12, 2)
+  status               PayrollStatus @default(DRAFT)
+  createdAt            DateTime      @default(now()) @map("created_at")
+  updatedAt            DateTime      @updatedAt @map("updated_at")
+
+  employee Employee          @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  contract EmployeeContract? @relation(fields: [contractId], references: [id], onDelete: Restrict)
+  company  Company           @relation("ChristmasBonusCompany", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([employeeId, year])
+  @@index([employeeId])
+  @@index([companyId, year])
+  @@index([year])
+  @@index([status])
+  @@map("christmas_bonuses")
 }

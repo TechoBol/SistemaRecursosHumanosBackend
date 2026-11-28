@@ -19,6 +19,7 @@ import employeeAdvanceRoute from "../routes/employeeAdvance.routes";
 import vacationRoute from "../routes/vacation.routes";
 import payrollRoute from "../routes/payroll.routes";
 import employeeBonusRoute from "../routes/employeeBonus.routes";
+import christmasBonusRoute from "../routes/christmasBonus.routes";
 
 const app = express();
 
@@ -47,5 +48,6 @@ app.use("/api/employee-advance", verifyToken, employeeAdvanceRoute);
 app.use("/api/vacation", verifyToken, vacationRoute);
 app.use("/api/payroll", verifyToken, payrollRoute);
 app.use("/api/employee-bonus", verifyToken, employeeBonusRoute);
+app.use("/api/christmas-bonus", verifyToken, christmasBonusRoute);
 
 export default app;
